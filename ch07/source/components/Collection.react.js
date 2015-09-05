@@ -29,7 +29,7 @@ class Collection extends React.Component {
         const numberOfTweetsInCollection = this.getNumberOfTweetsInCollection();
 
         if (numberOfTweetsInCollection > 0) {
-            const tweets = this.props.tweets;
+            const { tweets } = this.props;
             const htmlMarkup = this.createHtmlMarkupStringOfTweetList();
             const removeAllTweetsFromCollection = this.props.onRemoveAllTweetsFromCollection.bind(this);
             const handleRemoveTweetFromCollection = this.props.onRemoveTweetFromCollection.bind(this);

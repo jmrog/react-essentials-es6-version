@@ -27,7 +27,7 @@ class Stream extends React.Component {
     }
 
     render() {
-        const tweet = this.state.tweet;
+        const { tweet } = this.state;
 
         if (tweet) {
             return (

@@ -25816,6 +25816,7 @@ var Application = (function (_React$Component) {
         key: 'addTweetToCollection',
         value: function addTweetToCollection(tweet) {
             var collectionTweets = this.state.collectionTweets;
+
             collectionTweets[tweet.id] = tweet;
 
             this.setState({
@@ -25826,6 +25827,7 @@ var Application = (function (_React$Component) {
         key: 'removeTweetFromCollection',
         value: function removeTweetFromCollection(tweet) {
             var collectionTweets = this.state.collectionTweets;
+
             delete collectionTweets[tweet.id];
 
             this.setState({
@@ -26000,6 +26002,7 @@ var Collection = (function (_React$Component) {
 
             if (numberOfTweetsInCollection > 0) {
                 var tweets = this.props.tweets;
+
                 var htmlMarkup = this.createHtmlMarkupStringOfTweetList();
                 var removeAllTweetsFromCollection = this.props.onRemoveAllTweetsFromCollection.bind(this);
                 var handleRemoveTweetFromCollection = this.props.onRemoveTweetFromCollection.bind(this);
@@ -26081,6 +26084,7 @@ var CollectionControls = (function (_React$Component) {
         key: 'getHeaderText',
         value: function getHeaderText() {
             var numberOfTweetsInCollection = this.props.numberOfTweetsInCollection;
+
             var text = numberOfTweetsInCollection;
 
             if (numberOfTweetsInCollection === 1) {
@@ -26635,8 +26639,9 @@ var Tweet = (function (_React$Component) {
     _createClass(Tweet, [{
         key: 'handleImageClick',
         value: function handleImageClick() {
-            var tweet = this.props.tweet;
-            var onImageClick = this.props.onImageClick;
+            var _props = this.props;
+            var tweet = _props.tweet;
+            var onImageClick = _props.onImageClick;
 
             if (onImageClick) {
                 onImageClick(tweet);
@@ -26646,6 +26651,7 @@ var Tweet = (function (_React$Component) {
         key: 'render',
         value: function render() {
             var tweet = this.props.tweet;
+
             var tweetMediaUrl = tweet.media[0].url;
 
             return _react2['default'].createElement(

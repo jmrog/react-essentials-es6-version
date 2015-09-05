@@ -14,7 +14,7 @@ class CollectionControls extends React.Component {
     }
 
     getHeaderText() {
-        const numberOfTweetsInCollection = this.props.numberOfTweetsInCollection;
+        const { numberOfTweetsInCollection } = this.props;
         let text = numberOfTweetsInCollection;
 
         if (numberOfTweetsInCollection === 1) {

@@ -63,8 +63,6 @@ var _dispatcherAppDispatcher = require('../dispatcher/AppDispatcher');
 var _dispatcherAppDispatcher2 = _interopRequireDefault(_dispatcherAppDispatcher);
 
 function receiveTweet(tweet) {
-    console.log('Received a tweet.');
-
     var action = {
         type: 'receive_tweet',
         tweet: tweet
@@ -103,12 +101,7 @@ var _utilsWebAPIUtils2 = _interopRequireDefault(_utilsWebAPIUtils);
 
 _utilsWebAPIUtils2['default'].initializeStreamOfTweets();
 
-/*
-ReactDOM.render(
-    <Application />,
-    document.getElementById('react-application')
-);
-*/
+_reactDom2['default'].render(_react2['default'].createElement(_componentsApplicationReact2['default'], null), document.getElementById('react-application'));
 
 },{"./components/Application.react":4,"./utils/WebAPIUtils":20,"react":181,"react-dom":27}],4:[function(require,module,exports){
 'use strict';
@@ -1255,7 +1248,7 @@ var TweetStore = (0, _objectAssign2['default'])({}, _events.EventEmitter.prototy
 
 function handleAction(action) {
     if (action.type === 'receive_tweet') {
-        setTweet(action.type);
+        setTweet(action.tweet);
         emitChange();
     }
 }

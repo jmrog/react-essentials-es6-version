@@ -28,7 +28,7 @@ const TweetStore = assign({}, EventEmitter.prototype, {
 
 function handleAction(action) {
     if (action.type === 'receive_tweet') {
-        setTweet(action.type);
+        setTweet(action.tweet);
         emitChange();
     }
 }

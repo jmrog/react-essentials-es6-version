@@ -1,8 +1,6 @@
 import AppDispatcher from '../dispatcher/AppDispatcher';
 
 function receiveTweet(tweet) {
-    console.log('Received a tweet.');
-
     const action = {
         type: 'receive_tweet',
         tweet

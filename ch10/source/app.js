@@ -5,10 +5,8 @@ import WebAPIUtils from './utils/WebAPIUtils';
 
 WebAPIUtils.initializeStreamOfTweets();
 
-/*
 ReactDOM.render(
     <Application />,
     document.getElementById('react-application')
 );
-*/
 

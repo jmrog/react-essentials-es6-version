@@ -31,7 +31,9 @@ function drainQueue() {
         currentQueue = queue;
         queue = [];
         while (++queueIndex < len) {
-            currentQueue[queueIndex].run();
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
         }
         queueIndex = -1;
         len = queue.length;
@@ -83,7 +85,6 @@ process.binding = function (name) {
     throw new Error('process.binding is not supported');
 };
 
-// TODO(shtylman)
 process.cwd = function () { return '/' };
 process.chdir = function (dir) {
     throw new Error('process.chdir is not supported');
@@ -91,12 +92,16 @@ process.chdir = function (dir) {
 process.umask = function() { return 0; };
 
 },{}],2:[function(require,module,exports){
+'use strict';
+
 module.exports = require('react/lib/ReactDOM');
 
 },{"react/lib/ReactDOM":38}],3:[function(require,module,exports){
+'use strict';
+
 module.exports = require('react/lib/ReactDOMServer');
 
-},{"react/lib/ReactDOMServer":47}],4:[function(require,module,exports){
+},{"react/lib/ReactDOMServer":48}],4:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -133,7 +138,7 @@ var AutoFocusUtils = {
 };
 
 module.exports = AutoFocusUtils;
-},{"./ReactMount":67,"./findDOMNode":108,"fbjs/lib/focusNode":139}],5:[function(require,module,exports){
+},{"./ReactMount":68,"./findDOMNode":111,"fbjs/lib/focusNode":141}],5:[function(require,module,exports){
 /**
  * Copyright 2013-2015 Facebook, Inc.
  * All rights reserved.
@@ -539,7 +544,7 @@ var BeforeInputEventPlugin = {
 };
 
 module.exports = BeforeInputEventPlugin;
-},{"./EventConstants":17,"./EventPropagators":21,"./FallbackCompositionState":22,"./SyntheticCompositionEvent":91,"./SyntheticInputEvent":95,"fbjs/lib/ExecutionEnvironment":131,"fbjs/lib/keyOf":149}],6:[function(require,module,exports){
+},{"./EventConstants":17,"./EventPropagators":21,"./FallbackCompositionState":22,"./SyntheticCompositionEvent":93,"./SyntheticInputEvent":97,"fbjs/lib/ExecutionEnvironment":133,"fbjs/lib/keyOf":151}],6:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -581,6 +586,7 @@ var isUnitlessNumber = {
 
   // SVG-related properties
   fillOpacity: true,
+  stopOpacity: true,
   strokeDashoffset: true,
   strokeOpacity: true,
   strokeWidth: true
@@ -621,10 +627,16 @@ Object.keys(isUnitlessNumber).forEach(function (prop) {
  */
 var shorthandPropertyExpansions = {
   background: {
+    backgroundAttachment: true,
+    backgroundColor: true,
     backgroundImage: true,
-    backgroundPosition: true,
-    backgroundRepeat: true,
-    backgroundColor: true
+    backgroundPositionX: true,
+    backgroundPositionY: true,
+    backgroundRepeat: true
+  },
+  backgroundPosition: {
+    backgroundPositionX: true,
+    backgroundPositionY: true
   },
   border: {
     borderWidth: true,
@@ -658,6 +670,11 @@ var shorthandPropertyExpansions = {
     fontSize: true,
     lineHeight: true,
     fontFamily: true
+  },
+  outline: {
+    outlineWidth: true,
+    outlineStyle: true,
+    outlineColor: true
   }
 };
 
@@ -685,19 +702,28 @@ module.exports = CSSProperty;
 
 var CSSProperty = require('./CSSProperty');
 var ExecutionEnvironment = require('fbjs/lib/ExecutionEnvironment');
+var ReactPerf = require('./ReactPerf');
 
 var camelizeStyleName = require('fbjs/lib/camelizeStyleName');
 var dangerousStyleValue = require('./dangerousStyleValue');
 var hyphenateStyleName = require('fbjs/lib/hyphenateStyleName');
-var memoizeStringOnly = require('./memoizeStringOnly');
+var memoizeStringOnly = require('fbjs/lib/memoizeStringOnly');
 var warning = require('fbjs/lib/warning');
 
 var processStyleName = memoizeStringOnly(function (styleName) {
   return hyphenateStyleName(styleName);
 });
 
+var hasShorthandPropertyBug = false;
 var styleFloatAccessor = 'cssFloat';
 if (ExecutionEnvironment.canUseDOM) {
+  var tempStyle = document.createElement('div').style;
+  try {
+    // IE8 throws "Invalid argument." if resetting shorthand style properties.
+    tempStyle.font = '';
+  } catch (e) {
+    hasShorthandPropertyBug = true;
+  }
   // IE8 only supports accessing cssFloat (standard) as styleFloat
   if (document.documentElement.style.cssFloat === undefined) {
     styleFloatAccessor = 'styleFloat';
@@ -814,7 +840,7 @@ var CSSPropertyOperations = {
       if (styleValue) {
         style[styleName] = styleValue;
       } else {
-        var expansion = CSSProperty.shorthandPropertyExpansions[styleName];
+        var expansion = hasShorthandPropertyBug && CSSProperty.shorthandPropertyExpansions[styleName];
         if (expansion) {
           // Shorthand property that IE8 won't like unsetting, so unset each
           // component to placate it
@@ -830,9 +856,13 @@ var CSSPropertyOperations = {
 
 };
 
+ReactPerf.measureMethods(CSSPropertyOperations, 'CSSPropertyOperations', {
+  setValueForStyles: 'setValueForStyles'
+});
+
 module.exports = CSSPropertyOperations;
 }).call(this,require('_process'))
-},{"./CSSProperty":6,"./dangerousStyleValue":105,"./memoizeStringOnly":121,"_process":1,"fbjs/lib/ExecutionEnvironment":131,"fbjs/lib/camelizeStyleName":133,"fbjs/lib/hyphenateStyleName":144,"fbjs/lib/warning":155}],8:[function(require,module,exports){
+},{"./CSSProperty":6,"./ReactPerf":74,"./dangerousStyleValue":108,"_process":1,"fbjs/lib/ExecutionEnvironment":133,"fbjs/lib/camelizeStyleName":135,"fbjs/lib/hyphenateStyleName":146,"fbjs/lib/memoizeStringOnly":153,"fbjs/lib/warning":158}],8:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -928,7 +958,7 @@ PooledClass.addPoolingTo(CallbackQueue);
 
 module.exports = CallbackQueue;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./PooledClass":26,"_process":1,"fbjs/lib/invariant":145}],9:[function(require,module,exports){
+},{"./Object.assign":25,"./PooledClass":26,"_process":1,"fbjs/lib/invariant":147}],9:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -949,6 +979,7 @@ var ExecutionEnvironment = require('fbjs/lib/ExecutionEnvironment');
 var ReactUpdates = require('./ReactUpdates');
 var SyntheticEvent = require('./SyntheticEvent');
 
+var getEventTarget = require('./getEventTarget');
 var isEventSupported = require('./isEventSupported');
 var isTextInputElement = require('./isTextInputElement');
 var keyOf = require('fbjs/lib/keyOf');
@@ -988,7 +1019,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 function manualDispatchChangeEvent(nativeEvent) {
-  var event = SyntheticEvent.getPooled(eventTypes.change, activeElementID, nativeEvent, nativeEvent.target);
+  var event = SyntheticEvent.getPooled(eventTypes.change, activeElementID, nativeEvent, getEventTarget(nativeEvent));
   EventPropagators.accumulateTwoPhaseDispatches(event);
 
   // If change and propertychange bubbled, we'd just bind to it like all the
@@ -1007,7 +1038,7 @@ function manualDispatchChangeEvent(nativeEvent) {
 
 function runEventInBatch(event) {
   EventPluginHub.enqueueEvents(event);
-  EventPluginHub.processEventQueue();
+  EventPluginHub.processEventQueue(false);
 }
 
 function startWatchingForChangeEventIE8(target, targetID) {
@@ -1077,6 +1108,8 @@ function startWatchingForValueChange(target, targetID) {
   activeElementValue = target.value;
   activeElementValueProp = Object.getOwnPropertyDescriptor(target.constructor.prototype, 'value');
 
+  // Not guarded in a canDefineProperty check: IE8 supports defineProperty only
+  // on DOM elements
   Object.defineProperty(activeElement, 'value', newValueProp);
   activeElement.attachEvent('onpropertychange', handlePropertyChange);
 }
@@ -1247,7 +1280,7 @@ var ChangeEventPlugin = {
 };
 
 module.exports = ChangeEventPlugin;
-},{"./EventConstants":17,"./EventPluginHub":18,"./EventPropagators":21,"./ReactUpdates":85,"./SyntheticEvent":93,"./isEventSupported":119,"./isTextInputElement":120,"fbjs/lib/ExecutionEnvironment":131,"fbjs/lib/keyOf":149}],10:[function(require,module,exports){
+},{"./EventConstants":17,"./EventPluginHub":18,"./EventPropagators":21,"./ReactUpdates":86,"./SyntheticEvent":95,"./getEventTarget":117,"./isEventSupported":122,"./isTextInputElement":123,"fbjs/lib/ExecutionEnvironment":133,"fbjs/lib/keyOf":151}],10:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -1289,6 +1322,7 @@ module.exports = ClientReactRootIndex;
 
 var Danger = require('./Danger');
 var ReactMultiChildUpdateTypes = require('./ReactMultiChildUpdateTypes');
+var ReactPerf = require('./ReactPerf');
 
 var setInnerHTML = require('./setInnerHTML');
 var setTextContent = require('./setTextContent');
@@ -1357,7 +1391,13 @@ var DOMChildrenOperations = {
       }
     }
 
-    var renderedMarkup = Danger.dangerouslyRenderMarkup(markupList);
+    var renderedMarkup;
+    // markupList is either a list of markup or just a list of elements
+    if (markupList.length && typeof markupList[0] === 'string') {
+      renderedMarkup = Danger.dangerouslyRenderMarkup(markupList);
+    } else {
+      renderedMarkup = markupList;
+    }
 
     // Remove updated children first so that `toIndex` is consistent.
     if (updatedChildren) {
@@ -1390,9 +1430,13 @@ var DOMChildrenOperations = {
 
 };
 
+ReactPerf.measureMethods(DOMChildrenOperations, 'DOMChildrenOperations', {
+  updateTextContent: 'updateTextContent'
+});
+
 module.exports = DOMChildrenOperations;
 }).call(this,require('_process'))
-},{"./Danger":14,"./ReactMultiChildUpdateTypes":69,"./setInnerHTML":125,"./setTextContent":126,"_process":1,"fbjs/lib/invariant":145}],12:[function(require,module,exports){
+},{"./Danger":14,"./ReactMultiChildUpdateTypes":70,"./ReactPerf":74,"./setInnerHTML":127,"./setTextContent":128,"_process":1,"fbjs/lib/invariant":147}],12:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -1629,7 +1673,7 @@ var DOMProperty = {
 
 module.exports = DOMProperty;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/invariant":145}],13:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/invariant":147}],13:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -1646,12 +1690,13 @@ module.exports = DOMProperty;
 'use strict';
 
 var DOMProperty = require('./DOMProperty');
+var ReactPerf = require('./ReactPerf');
 
 var quoteAttributeValueForBrowser = require('./quoteAttributeValueForBrowser');
 var warning = require('fbjs/lib/warning');
 
 // Simplified subset
-var VALID_ATTRIBUTE_NAME_REGEX = /^[a-zA-Z_][a-zA-Z_\.\-\d]*$/;
+var VALID_ATTRIBUTE_NAME_REGEX = /^[a-zA-Z_][\w\.\-]*$/;
 var illegalAttributeNameCache = {};
 var validatedAttributeNameCache = {};
 
@@ -1714,6 +1759,10 @@ var DOMPropertyOperations = {
    */
   createMarkupForID: function (id) {
     return DOMProperty.ID_ATTRIBUTE_NAME + '=' + quoteAttributeValueForBrowser(id);
+  },
+
+  setAttributeForID: function (node, id) {
+    node.setAttribute(DOMProperty.ID_ATTRIBUTE_NAME, id);
   },
 
   /**
@@ -1781,6 +1830,8 @@ var DOMPropertyOperations = {
         // ('' + value) makes it output the correct toString()-value.
         if (namespace) {
           node.setAttributeNS(namespace, attributeName, '' + value);
+        } else if (propertyInfo.hasBooleanValue || propertyInfo.hasOverloadedBooleanValue && value === true) {
+          node.setAttribute(attributeName, '');
         } else {
           node.setAttribute(attributeName, '' + value);
         }
@@ -1842,9 +1893,15 @@ var DOMPropertyOperations = {
 
 };
 
+ReactPerf.measureMethods(DOMPropertyOperations, 'DOMPropertyOperations', {
+  setValueForProperty: 'setValueForProperty',
+  setValueForAttribute: 'setValueForAttribute',
+  deleteValueForProperty: 'deleteValueForProperty'
+});
+
 module.exports = DOMPropertyOperations;
 }).call(this,require('_process'))
-},{"./DOMProperty":12,"./quoteAttributeValueForBrowser":123,"_process":1,"fbjs/lib/warning":155}],14:[function(require,module,exports){
+},{"./DOMProperty":12,"./ReactPerf":74,"./quoteAttributeValueForBrowser":125,"_process":1,"fbjs/lib/warning":158}],14:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -1897,7 +1954,7 @@ var Danger = {
    * @internal
    */
   dangerouslyRenderMarkup: function (markupList) {
-    !ExecutionEnvironment.canUseDOM ? process.env.NODE_ENV !== 'production' ? invariant(false, 'dangerouslyRenderMarkup(...): Cannot render markup in a worker ' + 'thread. Make sure `window` and `document` are available globally ' + 'before requiring React when unit testing or use ' + 'React.renderToString for server rendering.') : invariant(false) : undefined;
+    !ExecutionEnvironment.canUseDOM ? process.env.NODE_ENV !== 'production' ? invariant(false, 'dangerouslyRenderMarkup(...): Cannot render markup in a worker ' + 'thread. Make sure `window` and `document` are available globally ' + 'before requiring React when unit testing or use ' + 'ReactDOMServer.renderToString for server rendering.') : invariant(false) : undefined;
     var nodeName;
     var markupByNodeName = {};
     // Group markup by `nodeName` if a wrap is necessary, else by '*'.
@@ -1975,11 +2032,16 @@ var Danger = {
    * @internal
    */
   dangerouslyReplaceNodeWithMarkup: function (oldChild, markup) {
-    !ExecutionEnvironment.canUseDOM ? process.env.NODE_ENV !== 'production' ? invariant(false, 'dangerouslyReplaceNodeWithMarkup(...): Cannot render markup in a ' + 'worker thread. Make sure `window` and `document` are available ' + 'globally before requiring React when unit testing or use ' + 'React.renderToString for server rendering.') : invariant(false) : undefined;
+    !ExecutionEnvironment.canUseDOM ? process.env.NODE_ENV !== 'production' ? invariant(false, 'dangerouslyReplaceNodeWithMarkup(...): Cannot render markup in a ' + 'worker thread. Make sure `window` and `document` are available ' + 'globally before requiring React when unit testing or use ' + 'ReactDOMServer.renderToString() for server rendering.') : invariant(false) : undefined;
     !markup ? process.env.NODE_ENV !== 'production' ? invariant(false, 'dangerouslyReplaceNodeWithMarkup(...): Missing markup.') : invariant(false) : undefined;
-    !(oldChild.tagName.toLowerCase() !== 'html') ? process.env.NODE_ENV !== 'production' ? invariant(false, 'dangerouslyReplaceNodeWithMarkup(...): Cannot replace markup of the ' + '<html> node. This is because browser quirks make this unreliable ' + 'and/or slow. If you want to render to the root you must use ' + 'server rendering. See React.renderToString().') : invariant(false) : undefined;
+    !(oldChild.tagName.toLowerCase() !== 'html') ? process.env.NODE_ENV !== 'production' ? invariant(false, 'dangerouslyReplaceNodeWithMarkup(...): Cannot replace markup of the ' + '<html> node. This is because browser quirks make this unreliable ' + 'and/or slow. If you want to render to the root you must use ' + 'server rendering. See ReactDOMServer.renderToString().') : invariant(false) : undefined;
 
-    var newChild = createNodesFromMarkup(markup, emptyFunction)[0];
+    var newChild;
+    if (typeof markup === 'string') {
+      newChild = createNodesFromMarkup(markup, emptyFunction)[0];
+    } else {
+      newChild = markup;
+    }
     oldChild.parentNode.replaceChild(newChild, oldChild);
   }
 
@@ -1987,7 +2049,7 @@ var Danger = {
 
 module.exports = Danger;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/ExecutionEnvironment":131,"fbjs/lib/createNodesFromMarkup":136,"fbjs/lib/emptyFunction":137,"fbjs/lib/getMarkupWrap":141,"fbjs/lib/invariant":145}],15:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/ExecutionEnvironment":133,"fbjs/lib/createNodesFromMarkup":138,"fbjs/lib/emptyFunction":139,"fbjs/lib/getMarkupWrap":143,"fbjs/lib/invariant":147}],15:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -2015,7 +2077,7 @@ var keyOf = require('fbjs/lib/keyOf');
 var DefaultEventPluginOrder = [keyOf({ ResponderEventPlugin: null }), keyOf({ SimpleEventPlugin: null }), keyOf({ TapEventPlugin: null }), keyOf({ EnterLeaveEventPlugin: null }), keyOf({ ChangeEventPlugin: null }), keyOf({ SelectEventPlugin: null }), keyOf({ BeforeInputEventPlugin: null })];
 
 module.exports = DefaultEventPluginOrder;
-},{"fbjs/lib/keyOf":149}],16:[function(require,module,exports){
+},{"fbjs/lib/keyOf":151}],16:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -2094,22 +2156,30 @@ var EnterLeaveEventPlugin = {
       }
     }
 
-    var from, to;
+    var from;
+    var to;
+    var fromID = '';
+    var toID = '';
     if (topLevelType === topLevelTypes.topMouseOut) {
       from = topLevelTarget;
-      to = getFirstReactDOM(nativeEvent.relatedTarget || nativeEvent.toElement) || win;
+      fromID = topLevelTargetID;
+      to = getFirstReactDOM(nativeEvent.relatedTarget || nativeEvent.toElement);
+      if (to) {
+        toID = ReactMount.getID(to);
+      } else {
+        to = win;
+      }
+      to = to || win;
     } else {
       from = win;
       to = topLevelTarget;
+      toID = topLevelTargetID;
     }
 
     if (from === to) {
       // Nothing pertains to our managed components.
       return null;
     }
-
-    var fromID = from ? ReactMount.getID(from) : '';
-    var toID = to ? ReactMount.getID(to) : '';
 
     var leave = SyntheticMouseEvent.getPooled(eventTypes.mouseLeave, fromID, nativeEvent, nativeEventTarget);
     leave.type = 'mouseleave';
@@ -2132,7 +2202,7 @@ var EnterLeaveEventPlugin = {
 };
 
 module.exports = EnterLeaveEventPlugin;
-},{"./EventConstants":17,"./EventPropagators":21,"./ReactMount":67,"./SyntheticMouseEvent":97,"fbjs/lib/keyOf":149}],17:[function(require,module,exports){
+},{"./EventConstants":17,"./EventPropagators":21,"./ReactMount":68,"./SyntheticMouseEvent":99,"fbjs/lib/keyOf":151}],17:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -2206,8 +2276,8 @@ var topLevelTypes = keyMirror({
   topSeeking: null,
   topSelectionChange: null,
   topStalled: null,
-  topSuspend: null,
   topSubmit: null,
+  topSuspend: null,
   topTextInput: null,
   topTimeUpdate: null,
   topTouchCancel: null,
@@ -2225,7 +2295,7 @@ var EventConstants = {
 };
 
 module.exports = EventConstants;
-},{"fbjs/lib/keyMirror":148}],18:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":150}],18:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -2242,6 +2312,7 @@ module.exports = EventConstants;
 
 var EventPluginRegistry = require('./EventPluginRegistry');
 var EventPluginUtils = require('./EventPluginUtils');
+var ReactErrorUtils = require('./ReactErrorUtils');
 
 var accumulateInto = require('./accumulateInto');
 var forEachAccumulated = require('./forEachAccumulated');
@@ -2263,22 +2334,23 @@ var eventQueue = null;
  * Dispatches an event and releases it back into the pool, unless persistent.
  *
  * @param {?object} event Synthetic event to be dispatched.
+ * @param {boolean} simulated If the event is simulated (changes exn behavior)
  * @private
  */
-var executeDispatchesAndRelease = function (event) {
+var executeDispatchesAndRelease = function (event, simulated) {
   if (event) {
-    var executeDispatch = EventPluginUtils.executeDispatch;
-    // Plugins can provide custom behavior when dispatching events.
-    var PluginModule = EventPluginRegistry.getPluginModuleForEvent(event);
-    if (PluginModule && PluginModule.executeDispatch) {
-      executeDispatch = PluginModule.executeDispatch;
-    }
-    EventPluginUtils.executeDispatchesInOrder(event, executeDispatch);
+    EventPluginUtils.executeDispatchesInOrder(event, simulated);
 
     if (!event.isPersistent()) {
       event.constructor.release(event);
     }
   }
+};
+var executeDispatchesAndReleaseSimulated = function (e) {
+  return executeDispatchesAndRelease(e, true);
+};
+var executeDispatchesAndReleaseTopLevel = function (e) {
+  return executeDispatchesAndRelease(e, false);
 };
 
 /**
@@ -2475,13 +2547,19 @@ var EventPluginHub = {
    *
    * @internal
    */
-  processEventQueue: function () {
+  processEventQueue: function (simulated) {
     // Set `eventQueue` to null before processing it so that we can tell if more
     // events get enqueued while processing.
     var processingEventQueue = eventQueue;
     eventQueue = null;
-    forEachAccumulated(processingEventQueue, executeDispatchesAndRelease);
+    if (simulated) {
+      forEachAccumulated(processingEventQueue, executeDispatchesAndReleaseSimulated);
+    } else {
+      forEachAccumulated(processingEventQueue, executeDispatchesAndReleaseTopLevel);
+    }
     !!eventQueue ? process.env.NODE_ENV !== 'production' ? invariant(false, 'processEventQueue(): Additional events were enqueued while processing ' + 'an event queue. Support for this has not yet been implemented.') : invariant(false) : undefined;
+    // This would be a good time to rethrow if any of the event handlers threw.
+    ReactErrorUtils.rethrowCaughtError();
   },
 
   /**
@@ -2499,7 +2577,7 @@ var EventPluginHub = {
 
 module.exports = EventPluginHub;
 }).call(this,require('_process'))
-},{"./EventPluginRegistry":19,"./EventPluginUtils":20,"./accumulateInto":103,"./forEachAccumulated":110,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],19:[function(require,module,exports){
+},{"./EventPluginRegistry":19,"./EventPluginUtils":20,"./ReactErrorUtils":59,"./accumulateInto":105,"./forEachAccumulated":113,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],19:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -2722,7 +2800,7 @@ var EventPluginRegistry = {
 
 module.exports = EventPluginRegistry;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/invariant":145}],20:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/invariant":147}],20:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -2738,6 +2816,7 @@ module.exports = EventPluginRegistry;
 'use strict';
 
 var EventConstants = require('./EventConstants');
+var ReactErrorUtils = require('./ReactErrorUtils');
 
 var invariant = require('fbjs/lib/invariant');
 var warning = require('fbjs/lib/warning');
@@ -2789,11 +2868,27 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 /**
- * Invokes `cb(event, listener, id)`. Avoids using call if no scope is
- * provided. The `(listener,id)` pair effectively forms the "dispatch" but are
- * kept separate to conserve memory.
+ * Dispatch the event to the listener.
+ * @param {SyntheticEvent} event SyntheticEvent to handle
+ * @param {boolean} simulated If the event is simulated (changes exn behavior)
+ * @param {function} listener Application-level callback
+ * @param {string} domID DOM id to pass to the callback.
  */
-function forEachEventDispatch(event, cb) {
+function executeDispatch(event, simulated, listener, domID) {
+  var type = event.type || 'unknown-event';
+  event.currentTarget = injection.Mount.getNode(domID);
+  if (simulated) {
+    ReactErrorUtils.invokeGuardedCallbackWithCatch(type, listener, event, domID);
+  } else {
+    ReactErrorUtils.invokeGuardedCallback(type, listener, event, domID);
+  }
+  event.currentTarget = null;
+}
+
+/**
+ * Standard/simple iteration through an event's collected dispatches.
+ */
+function executeDispatchesInOrder(event, simulated) {
   var dispatchListeners = event._dispatchListeners;
   var dispatchIDs = event._dispatchIDs;
   if (process.env.NODE_ENV !== 'production') {
@@ -2805,31 +2900,11 @@ function forEachEventDispatch(event, cb) {
         break;
       }
       // Listeners and IDs are two parallel arrays that are always in sync.
-      cb(event, dispatchListeners[i], dispatchIDs[i]);
+      executeDispatch(event, simulated, dispatchListeners[i], dispatchIDs[i]);
     }
   } else if (dispatchListeners) {
-    cb(event, dispatchListeners, dispatchIDs);
+    executeDispatch(event, simulated, dispatchListeners, dispatchIDs);
   }
-}
-
-/**
- * Default implementation of PluginModule.executeDispatch().
- * @param {SyntheticEvent} event SyntheticEvent to handle
- * @param {function} listener Application-level callback
- * @param {string} domID DOM id to pass to the callback.
- */
-function executeDispatch(event, listener, domID) {
-  event.currentTarget = injection.Mount.getNode(domID);
-  var returnValue = listener(event, domID);
-  event.currentTarget = null;
-  return returnValue;
-}
-
-/**
- * Standard/simple iteration through an event's collected dispatches.
- */
-function executeDispatchesInOrder(event, cb) {
-  forEachEventDispatch(event, cb);
   event._dispatchListeners = null;
   event._dispatchIDs = null;
 }
@@ -2914,7 +2989,6 @@ var EventPluginUtils = {
   isStartish: isStartish,
 
   executeDirectDispatch: executeDirectDispatch,
-  executeDispatch: executeDispatch,
   executeDispatchesInOrder: executeDispatchesInOrder,
   executeDispatchesInOrderStopAtTrue: executeDispatchesInOrderStopAtTrue,
   hasDispatches: hasDispatches,
@@ -2931,7 +3005,7 @@ var EventPluginUtils = {
 
 module.exports = EventPluginUtils;
 }).call(this,require('_process'))
-},{"./EventConstants":17,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],21:[function(require,module,exports){
+},{"./EventConstants":17,"./ReactErrorUtils":59,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],21:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -2987,7 +3061,7 @@ function accumulateDirectionalDispatches(domID, upwards, event) {
 /**
  * Collect dispatches (must be entirely collected before dispatching - see unit
  * tests). Lazily allocate the array to conserve memory.  We must loop through
- * each event and perform the traversal for each one. We can not perform a
+ * each event and perform the traversal for each one. We cannot perform a
  * single traversal for the entire collection of events because each event may
  * have a different target.
  */
@@ -3069,7 +3143,7 @@ var EventPropagators = {
 
 module.exports = EventPropagators;
 }).call(this,require('_process'))
-},{"./EventConstants":17,"./EventPluginHub":18,"./accumulateInto":103,"./forEachAccumulated":110,"_process":1,"fbjs/lib/warning":155}],22:[function(require,module,exports){
+},{"./EventConstants":17,"./EventPluginHub":18,"./accumulateInto":105,"./forEachAccumulated":113,"_process":1,"fbjs/lib/warning":158}],22:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -3107,6 +3181,12 @@ function FallbackCompositionState(root) {
 }
 
 assign(FallbackCompositionState.prototype, {
+  destructor: function () {
+    this._root = null;
+    this._startText = null;
+    this._fallbackText = null;
+  },
+
   /**
    * Get current text of input.
    *
@@ -3159,7 +3239,7 @@ assign(FallbackCompositionState.prototype, {
 PooledClass.addPoolingTo(FallbackCompositionState);
 
 module.exports = FallbackCompositionState;
-},{"./Object.assign":25,"./PooledClass":26,"./getTextContentAccessor":117}],23:[function(require,module,exports){
+},{"./Object.assign":25,"./PooledClass":26,"./getTextContentAccessor":120}],23:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -3231,6 +3311,7 @@ var HTMLDOMPropertyConfig = {
     crossOrigin: null,
     data: null, // For `<object />` acts as `src`.
     dateTime: MUST_USE_ATTRIBUTE,
+    'default': HAS_BOOLEAN_VALUE,
     defer: HAS_BOOLEAN_VALUE,
     dir: null,
     disabled: MUST_USE_ATTRIBUTE | HAS_BOOLEAN_VALUE,
@@ -3255,9 +3336,11 @@ var HTMLDOMPropertyConfig = {
     icon: null,
     id: MUST_USE_PROPERTY,
     inputMode: MUST_USE_ATTRIBUTE,
+    integrity: null,
     is: MUST_USE_ATTRIBUTE,
     keyParams: MUST_USE_ATTRIBUTE,
     keyType: MUST_USE_ATTRIBUTE,
+    kind: null,
     label: null,
     lang: null,
     list: MUST_USE_ATTRIBUTE,
@@ -3276,6 +3359,7 @@ var HTMLDOMPropertyConfig = {
     multiple: MUST_USE_PROPERTY | HAS_BOOLEAN_VALUE,
     muted: MUST_USE_PROPERTY | HAS_BOOLEAN_VALUE,
     name: null,
+    nonce: MUST_USE_ATTRIBUTE,
     noValidate: HAS_BOOLEAN_VALUE,
     open: HAS_BOOLEAN_VALUE,
     optimum: null,
@@ -3287,6 +3371,7 @@ var HTMLDOMPropertyConfig = {
     readOnly: MUST_USE_PROPERTY | HAS_BOOLEAN_VALUE,
     rel: null,
     required: HAS_BOOLEAN_VALUE,
+    reversed: HAS_BOOLEAN_VALUE,
     role: MUST_USE_ATTRIBUTE,
     rows: MUST_USE_ATTRIBUTE | HAS_POSITIVE_NUMERIC_VALUE,
     rowSpan: null,
@@ -3303,10 +3388,12 @@ var HTMLDOMPropertyConfig = {
     spellCheck: null,
     src: null,
     srcDoc: MUST_USE_PROPERTY,
+    srcLang: null,
     srcSet: MUST_USE_ATTRIBUTE,
     start: HAS_NUMERIC_VALUE,
     step: null,
     style: null,
+    summary: null,
     tabIndex: null,
     target: null,
     title: null,
@@ -3318,12 +3405,29 @@ var HTMLDOMPropertyConfig = {
     wrap: null,
 
     /**
+     * RDFa Properties
+     */
+    about: MUST_USE_ATTRIBUTE,
+    datatype: MUST_USE_ATTRIBUTE,
+    inlist: MUST_USE_ATTRIBUTE,
+    prefix: MUST_USE_ATTRIBUTE,
+    // property is also supported for OpenGraph in meta tags.
+    property: MUST_USE_ATTRIBUTE,
+    resource: MUST_USE_ATTRIBUTE,
+    'typeof': MUST_USE_ATTRIBUTE,
+    vocab: MUST_USE_ATTRIBUTE,
+
+    /**
      * Non-standard Properties
      */
     // autoCapitalize and autoCorrect are supported in Mobile Safari for
     // keyboard hints.
-    autoCapitalize: null,
-    autoCorrect: null,
+    autoCapitalize: MUST_USE_ATTRIBUTE,
+    autoCorrect: MUST_USE_ATTRIBUTE,
+    // autoSave allows WebKit/Blink to persist values of input fields on page reloads
+    autoSave: null,
+    // color is for Safari mask-icon link
+    color: null,
     // itemProp, itemScope, itemType are for
     // Microdata support. See http://schema.org/docs/gs.html
     itemProp: MUST_USE_ATTRIBUTE,
@@ -3334,8 +3438,9 @@ var HTMLDOMPropertyConfig = {
     // https://html.spec.whatwg.org/multipage/microdata.html#microdata-dom-api
     itemID: MUST_USE_ATTRIBUTE,
     itemRef: MUST_USE_ATTRIBUTE,
-    // property is supported for OpenGraph in meta tags.
-    property: null,
+    // results show looking glass icon and recent searches on input
+    // search fields in WebKit/Blink
+    results: null,
     // IE-only attribute that specifies security restrictions on an iframe
     // as an alternative to the sandbox attribute on IE<10
     security: MUST_USE_ATTRIBUTE,
@@ -3349,11 +3454,10 @@ var HTMLDOMPropertyConfig = {
     httpEquiv: 'http-equiv'
   },
   DOMPropertyNames: {
-    autoCapitalize: 'autocapitalize',
     autoComplete: 'autocomplete',
-    autoCorrect: 'autocorrect',
     autoFocus: 'autofocus',
     autoPlay: 'autoplay',
+    autoSave: 'autosave',
     // `encoding` is equivalent to `enctype`, IE8 lacks an `enctype` setter.
     // http://www.w3.org/TR/html5/forms.html#dom-fs-encoding
     encType: 'encoding',
@@ -3366,7 +3470,7 @@ var HTMLDOMPropertyConfig = {
 };
 
 module.exports = HTMLDOMPropertyConfig;
-},{"./DOMProperty":12,"fbjs/lib/ExecutionEnvironment":131}],24:[function(require,module,exports){
+},{"./DOMProperty":12,"fbjs/lib/ExecutionEnvironment":133}],24:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -3503,7 +3607,7 @@ var LinkedValueUtils = {
 
 module.exports = LinkedValueUtils;
 }).call(this,require('_process'))
-},{"./ReactPropTypeLocations":75,"./ReactPropTypes":76,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],25:[function(require,module,exports){
+},{"./ReactPropTypeLocations":76,"./ReactPropTypes":77,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],25:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -3633,9 +3737,7 @@ var fiveArgumentPooler = function (a1, a2, a3, a4, a5) {
 var standardReleaser = function (instance) {
   var Klass = this;
   !(instance instanceof Klass) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Trying to release an instance into a pool of a different type.') : invariant(false) : undefined;
-  if (instance.destructor) {
-    instance.destructor();
-  }
+  instance.destructor();
   if (Klass.instancePool.length < Klass.poolSize) {
     Klass.instancePool.push(instance);
   }
@@ -3675,7 +3777,7 @@ var PooledClass = {
 
 module.exports = PooledClass;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/invariant":145}],27:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/invariant":147}],27:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -3694,17 +3796,29 @@ var ReactDOMServer = require('./ReactDOMServer');
 var ReactIsomorphic = require('./ReactIsomorphic');
 
 var assign = require('./Object.assign');
+var deprecated = require('./deprecated');
 
+// `version` will be added here by ReactIsomorphic.
 var React = {};
 
 assign(React, ReactIsomorphic);
-assign(React, ReactDOM);
-assign(React, ReactDOMServer);
 
-React.version = '0.14.0-beta3';
+assign(React, {
+  // ReactDOM
+  findDOMNode: deprecated('findDOMNode', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.findDOMNode),
+  render: deprecated('render', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.render),
+  unmountComponentAtNode: deprecated('unmountComponentAtNode', 'ReactDOM', 'react-dom', ReactDOM, ReactDOM.unmountComponentAtNode),
+
+  // ReactDOMServer
+  renderToString: deprecated('renderToString', 'ReactDOMServer', 'react-dom/server', ReactDOMServer, ReactDOMServer.renderToString),
+  renderToStaticMarkup: deprecated('renderToStaticMarkup', 'ReactDOMServer', 'react-dom/server', ReactDOMServer, ReactDOMServer.renderToStaticMarkup)
+});
+
+React.__SECRET_DOM_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOM;
+React.__SECRET_DOM_SERVER_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactDOMServer;
 
 module.exports = React;
-},{"./Object.assign":25,"./ReactDOM":38,"./ReactDOMServer":47,"./ReactIsomorphic":65}],28:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactDOM":38,"./ReactDOMServer":48,"./ReactIsomorphic":66,"./deprecated":109}],28:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -3735,7 +3849,7 @@ var ReactBrowserComponentMixin = {
    * @protected
    */
   getDOMNode: function () {
-    process.env.NODE_ENV !== 'production' ? warning(this.constructor[didWarnKey], '%s.getDOMNode(...) is deprecated. Please use ' + 'React.findDOMNode(instance) instead.', ReactInstanceMap.get(this).getName() || this.tagName || 'Unknown') : undefined;
+    process.env.NODE_ENV !== 'production' ? warning(this.constructor[didWarnKey], '%s.getDOMNode(...) is deprecated. Please use ' + 'ReactDOM.findDOMNode(instance) instead.', ReactInstanceMap.get(this).getName() || this.tagName || 'Unknown') : undefined;
     this.constructor[didWarnKey] = true;
     return findDOMNode(this);
   }
@@ -3743,7 +3857,7 @@ var ReactBrowserComponentMixin = {
 
 module.exports = ReactBrowserComponentMixin;
 }).call(this,require('_process'))
-},{"./ReactInstanceMap":64,"./findDOMNode":108,"_process":1,"fbjs/lib/warning":155}],29:[function(require,module,exports){
+},{"./ReactInstanceMap":65,"./findDOMNode":111,"_process":1,"fbjs/lib/warning":158}],29:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -3762,6 +3876,7 @@ var EventConstants = require('./EventConstants');
 var EventPluginHub = require('./EventPluginHub');
 var EventPluginRegistry = require('./EventPluginRegistry');
 var ReactEventEmitterMixin = require('./ReactEventEmitterMixin');
+var ReactPerf = require('./ReactPerf');
 var ViewportMetrics = require('./ViewportMetrics');
 
 var assign = require('./Object.assign');
@@ -3869,15 +3984,15 @@ var topEventMapping = {
   topMouseOut: 'mouseout',
   topMouseOver: 'mouseover',
   topMouseUp: 'mouseup',
-  topPause: 'pause',
   topPaste: 'paste',
+  topPause: 'pause',
   topPlay: 'play',
   topPlaying: 'playing',
   topProgress: 'progress',
   topRateChange: 'ratechange',
-  topSeeking: 'seeking',
-  topSeeked: 'seeked',
   topScroll: 'scroll',
+  topSeeked: 'seeked',
+  topSeeking: 'seeking',
   topSelectionChange: 'selectionchange',
   topStalled: 'stalled',
   topSuspend: 'suspend',
@@ -4061,8 +4176,13 @@ var ReactBrowserEventEmitter = assign({}, ReactEventEmitterMixin, {
 
 });
 
+ReactPerf.measureMethods(ReactBrowserEventEmitter, 'ReactBrowserEventEmitter', {
+  putListener: 'putListener',
+  deleteListener: 'deleteListener'
+});
+
 module.exports = ReactBrowserEventEmitter;
-},{"./EventConstants":17,"./EventPluginHub":18,"./EventPluginRegistry":19,"./Object.assign":25,"./ReactEventEmitterMixin":58,"./ViewportMetrics":102,"./isEventSupported":119}],30:[function(require,module,exports){
+},{"./EventConstants":17,"./EventPluginHub":18,"./EventPluginRegistry":19,"./Object.assign":25,"./ReactEventEmitterMixin":60,"./ReactPerf":74,"./ViewportMetrics":104,"./isEventSupported":122}],30:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -4080,7 +4200,6 @@ module.exports = ReactBrowserEventEmitter;
 
 var ReactReconciler = require('./ReactReconciler');
 
-var flattenChildren = require('./flattenChildren');
 var instantiateReactComponent = require('./instantiateReactComponent');
 var shouldUpdateReactComponent = require('./shouldUpdateReactComponent');
 var traverseAllChildren = require('./traverseAllChildren');
@@ -4124,19 +4243,18 @@ var ReactChildReconciler = {
    * Updates the rendered children and returns a new set of children.
    *
    * @param {?object} prevChildren Previously initialized set of children.
-   * @param {?object} nextNestedChildrenElements Nested child element maps.
+   * @param {?object} nextChildren Flat child element maps.
    * @param {ReactReconcileTransaction} transaction
    * @param {object} context
    * @return {?object} A new set of child instances.
    * @internal
    */
-  updateChildren: function (prevChildren, nextNestedChildrenElements, transaction, context) {
+  updateChildren: function (prevChildren, nextChildren, transaction, context) {
     // We currently don't have a way to track moves here but if we use iterators
     // instead of for..in we can zip the iterators and check if an item has
     // moved.
     // TODO: If nothing has changed, return the prevChildren object so that we
     // can quickly bailout if nothing has changed.
-    var nextChildren = flattenChildren(nextNestedChildrenElements);
     if (!nextChildren && !prevChildren) {
       return null;
     }
@@ -4148,7 +4266,7 @@ var ReactChildReconciler = {
       var prevChild = prevChildren && prevChildren[name];
       var prevElement = prevChild && prevChild._currentElement;
       var nextElement = nextChildren[name];
-      if (shouldUpdateReactComponent(prevElement, nextElement)) {
+      if (prevChild != null && shouldUpdateReactComponent(prevElement, nextElement)) {
         ReactReconciler.receiveComponent(prevChild, nextElement, transaction, context);
         nextChildren[name] = prevChild;
       } else {
@@ -4189,8 +4307,7 @@ var ReactChildReconciler = {
 
 module.exports = ReactChildReconciler;
 }).call(this,require('_process'))
-},{"./ReactReconciler":78,"./flattenChildren":109,"./instantiateReactComponent":118,"./shouldUpdateReactComponent":127,"./traverseAllChildren":128,"_process":1,"fbjs/lib/warning":155}],31:[function(require,module,exports){
-(function (process){
+},{"./ReactReconciler":79,"./instantiateReactComponent":121,"./shouldUpdateReactComponent":129,"./traverseAllChildren":130,"_process":1,"fbjs/lib/warning":158}],31:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -4205,13 +4322,18 @@ module.exports = ReactChildReconciler;
 'use strict';
 
 var PooledClass = require('./PooledClass');
-var ReactFragment = require('./ReactFragment');
+var ReactElement = require('./ReactElement');
 
+var emptyFunction = require('fbjs/lib/emptyFunction');
 var traverseAllChildren = require('./traverseAllChildren');
-var warning = require('fbjs/lib/warning');
 
 var twoArgumentPooler = PooledClass.twoArgumentPooler;
-var threeArgumentPooler = PooledClass.threeArgumentPooler;
+var fourArgumentPooler = PooledClass.fourArgumentPooler;
+
+var userProvidedKeyEscapeRegex = /\/(?!\/)/g;
+function escapeUserProvidedKey(text) {
+  return ('' + text).replace(userProvidedKeyEscapeRegex, '//');
+}
 
 /**
  * PooledClass representing the bookkeeping associated with performing a child
@@ -4226,11 +4348,18 @@ function ForEachBookKeeping(forEachFunction, forEachContext) {
   this.context = forEachContext;
   this.count = 0;
 }
+ForEachBookKeeping.prototype.destructor = function () {
+  this.func = null;
+  this.context = null;
+  this.count = 0;
+};
 PooledClass.addPoolingTo(ForEachBookKeeping, twoArgumentPooler);
 
-function forEachSingleChild(traverseContext, child, name) {
-  var bookKeeping = traverseContext;
-  bookKeeping.func.call(bookKeeping.context, child, bookKeeping.count++);
+function forEachSingleChild(bookKeeping, child, name) {
+  var func = bookKeeping.func;
+  var context = bookKeeping.context;
+
+  func.call(context, child, bookKeeping.count++);
 }
 
 /**
@@ -4247,7 +4376,6 @@ function forEachChildren(children, forEachFunc, forEachContext) {
   if (children == null) {
     return children;
   }
-
   var traverseContext = ForEachBookKeeping.getPooled(forEachFunc, forEachContext);
   traverseAllChildren(children, forEachSingleChild, traverseContext);
   ForEachBookKeeping.release(traverseContext);
@@ -4262,27 +4390,50 @@ function forEachChildren(children, forEachFunc, forEachContext) {
  * @param {!function} mapFunction Function to perform mapping with.
  * @param {?*} mapContext Context to perform mapping with.
  */
-function MapBookKeeping(mapResult, mapFunction, mapContext) {
+function MapBookKeeping(mapResult, keyPrefix, mapFunction, mapContext) {
   this.result = mapResult;
+  this.keyPrefix = keyPrefix;
   this.func = mapFunction;
   this.context = mapContext;
   this.count = 0;
 }
-PooledClass.addPoolingTo(MapBookKeeping, threeArgumentPooler);
+MapBookKeeping.prototype.destructor = function () {
+  this.result = null;
+  this.keyPrefix = null;
+  this.func = null;
+  this.context = null;
+  this.count = 0;
+};
+PooledClass.addPoolingTo(MapBookKeeping, fourArgumentPooler);
 
-function mapSingleChildIntoContext(traverseContext, child, name) {
-  var bookKeeping = traverseContext;
-  var mapResult = bookKeeping.result;
+function mapSingleChildIntoContext(bookKeeping, child, childKey) {
+  var result = bookKeeping.result;
+  var keyPrefix = bookKeeping.keyPrefix;
+  var func = bookKeeping.func;
+  var context = bookKeeping.context;
 
-  var keyUnique = mapResult[name] === undefined;
-  if (process.env.NODE_ENV !== 'production') {
-    process.env.NODE_ENV !== 'production' ? warning(keyUnique, 'ReactChildren.map(...): Encountered two children with the same key, ' + '`%s`. Child keys must be unique; when two children share a key, only ' + 'the first child will be used.', name) : undefined;
+  var mappedChild = func.call(context, child, bookKeeping.count++);
+  if (Array.isArray(mappedChild)) {
+    mapIntoWithKeyPrefixInternal(mappedChild, result, childKey, emptyFunction.thatReturnsArgument);
+  } else if (mappedChild != null) {
+    if (ReactElement.isValidElement(mappedChild)) {
+      mappedChild = ReactElement.cloneAndReplaceKey(mappedChild,
+      // Keep both the (mapped) and old keys if they differ, just as
+      // traverseAllChildren used to do for objects as children
+      keyPrefix + (mappedChild !== child ? escapeUserProvidedKey(mappedChild.key || '') + '/' : '') + childKey);
+    }
+    result.push(mappedChild);
   }
+}
 
-  if (keyUnique) {
-    var mappedChild = bookKeeping.func.call(bookKeeping.context, child, bookKeeping.count++);
-    mapResult[name] = mappedChild;
+function mapIntoWithKeyPrefixInternal(children, array, prefix, func, context) {
+  var escapedPrefix = '';
+  if (prefix != null) {
+    escapedPrefix = escapeUserProvidedKey(prefix) + '/';
   }
+  var traverseContext = MapBookKeeping.getPooled(array, escapedPrefix, func, context);
+  traverseAllChildren(children, mapSingleChildIntoContext, traverseContext);
+  MapBookKeeping.release(traverseContext);
 }
 
 /**
@@ -4290,9 +4441,6 @@ function mapSingleChildIntoContext(traverseContext, child, name) {
  *
  * The provided mapFunction(child, key, index) will be called for each
  * leaf child.
- *
- * TODO: This may likely break any calls to `ReactChildren.map` that were
- * previously relying on the fact that we guarded against null children.
  *
  * @param {?*} children Children tree container.
  * @param {function(*, int)} func The map function.
@@ -4303,12 +4451,9 @@ function mapChildren(children, func, context) {
   if (children == null) {
     return children;
   }
-
-  var mapResult = {};
-  var traverseContext = MapBookKeeping.getPooled(mapResult, func, context);
-  traverseAllChildren(children, mapSingleChildIntoContext, traverseContext);
-  MapBookKeeping.release(traverseContext);
-  return ReactFragment.create(mapResult);
+  var result = [];
+  mapIntoWithKeyPrefixInternal(children, result, null, func, context);
+  return result;
 }
 
 function forEachSingleChildDummy(traverseContext, child, name) {
@@ -4326,15 +4471,26 @@ function countChildren(children, context) {
   return traverseAllChildren(children, forEachSingleChildDummy, null);
 }
 
+/**
+ * Flatten a children object (typically specified as `props.children`) and
+ * return an array with appropriately re-keyed children.
+ */
+function toArray(children) {
+  var result = [];
+  mapIntoWithKeyPrefixInternal(children, result, null, emptyFunction.thatReturnsArgument);
+  return result;
+}
+
 var ReactChildren = {
   forEach: forEachChildren,
   map: mapChildren,
-  count: countChildren
+  mapIntoWithKeyPrefixInternal: mapIntoWithKeyPrefixInternal,
+  count: countChildren,
+  toArray: toArray
 };
 
 module.exports = ReactChildren;
-}).call(this,require('_process'))
-},{"./PooledClass":26,"./ReactFragment":60,"./traverseAllChildren":128,"_process":1,"fbjs/lib/warning":155}],32:[function(require,module,exports){
+},{"./PooledClass":26,"./ReactElement":55,"./traverseAllChildren":130,"fbjs/lib/emptyFunction":139}],32:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -4351,7 +4507,6 @@ module.exports = ReactChildren;
 
 var ReactComponent = require('./ReactComponent');
 var ReactElement = require('./ReactElement');
-var ReactErrorUtils = require('./ReactErrorUtils');
 var ReactPropTypeLocations = require('./ReactPropTypeLocations');
 var ReactPropTypeLocationNames = require('./ReactPropTypeLocationNames');
 var ReactNoopUpdateQueue = require('./ReactNoopUpdateQueue');
@@ -4396,7 +4551,7 @@ var warnedSetProps = false;
 function warnSetProps() {
   if (!warnedSetProps) {
     warnedSetProps = true;
-    process.env.NODE_ENV !== 'production' ? warning(false, 'setProps(...) and replaceProps(...) are deprecated. ' + 'Instead, call React.render again at the top level.') : undefined;
+    process.env.NODE_ENV !== 'production' ? warning(false, 'setProps(...) and replaceProps(...) are deprecated. ' + 'Instead, call render again at the top level.') : undefined;
   }
 }
 
@@ -4696,9 +4851,10 @@ var RESERVED_SPEC_KEYS = {
   },
   statics: function (Constructor, statics) {
     mixStaticSpecIntoComponent(Constructor, statics);
-  }
-};
+  },
+  autobind: function () {} };
 
+// noop
 function validateTypeDef(Constructor, typeDef, location) {
   for (var propName in typeDef) {
     if (typeDef.hasOwnProperty(propName)) {
@@ -4767,7 +4923,7 @@ function mixSpecIntoComponent(Constructor, spec) {
       var isReactClassMethod = ReactClassInterface.hasOwnProperty(name);
       var isAlreadyDefined = proto.hasOwnProperty(name);
       var isFunction = typeof property === 'function';
-      var shouldAutoBind = isFunction && !isReactClassMethod && !isAlreadyDefined;
+      var shouldAutoBind = isFunction && !isReactClassMethod && !isAlreadyDefined && spec.autobind !== false;
 
       if (shouldAutoBind) {
         if (!proto.__reactAutoBindMap) {
@@ -4931,7 +5087,7 @@ function bindAutoBindMethods(component) {
   for (var autoBindKey in component.__reactAutoBindMap) {
     if (component.__reactAutoBindMap.hasOwnProperty(autoBindKey)) {
       var method = component.__reactAutoBindMap[autoBindKey];
-      component[autoBindKey] = bindAutoBindMethod(component, ReactErrorUtils.guard(method, component.constructor.displayName + '.' + autoBindKey));
+      component[autoBindKey] = bindAutoBindMethod(component, method);
     }
   }
 }
@@ -5108,7 +5264,7 @@ var ReactClass = {
 
 module.exports = ReactClass;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./ReactComponent":33,"./ReactElement":54,"./ReactErrorUtils":57,"./ReactNoopUpdateQueue":71,"./ReactPropTypeLocationNames":74,"./ReactPropTypeLocations":75,"_process":1,"fbjs/lib/emptyObject":138,"fbjs/lib/invariant":145,"fbjs/lib/keyMirror":148,"fbjs/lib/keyOf":149,"fbjs/lib/warning":155}],33:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactComponent":33,"./ReactElement":55,"./ReactNoopUpdateQueue":72,"./ReactPropTypeLocationNames":75,"./ReactPropTypeLocations":76,"_process":1,"fbjs/lib/emptyObject":140,"fbjs/lib/invariant":147,"fbjs/lib/keyMirror":150,"fbjs/lib/keyOf":151,"fbjs/lib/warning":158}],33:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -5125,6 +5281,7 @@ module.exports = ReactClass;
 
 var ReactNoopUpdateQueue = require('./ReactNoopUpdateQueue');
 
+var canDefineProperty = require('./canDefineProperty');
 var emptyObject = require('fbjs/lib/emptyObject');
 var invariant = require('fbjs/lib/invariant');
 var warning = require('fbjs/lib/warning');
@@ -5140,6 +5297,8 @@ function ReactComponent(props, context, updater) {
   // renderer.
   this.updater = updater || ReactNoopUpdateQueue;
 }
+
+ReactComponent.prototype.isReactComponent = {};
 
 /**
  * Sets a subset of the state. Always use this to mutate
@@ -5205,22 +5364,20 @@ ReactComponent.prototype.forceUpdate = function (callback) {
  */
 if (process.env.NODE_ENV !== 'production') {
   var deprecatedAPIs = {
-    getDOMNode: ['getDOMNode', 'Use React.findDOMNode(component) instead.'],
+    getDOMNode: ['getDOMNode', 'Use ReactDOM.findDOMNode(component) instead.'],
     isMounted: ['isMounted', 'Instead, make sure to clean up subscriptions and pending requests in ' + 'componentWillUnmount to prevent memory leaks.'],
-    replaceProps: ['replaceProps', 'Instead, call React.render again at the top level.'],
+    replaceProps: ['replaceProps', 'Instead, call render again at the top level.'],
     replaceState: ['replaceState', 'Refactor your code to use setState instead (see ' + 'https://github.com/facebook/react/issues/3236).'],
-    setProps: ['setProps', 'Instead, call React.render again at the top level.']
+    setProps: ['setProps', 'Instead, call render again at the top level.']
   };
   var defineDeprecationWarning = function (methodName, info) {
-    try {
+    if (canDefineProperty) {
       Object.defineProperty(ReactComponent.prototype, methodName, {
         get: function () {
           process.env.NODE_ENV !== 'production' ? warning(false, '%s(...) is deprecated in plain JavaScript React classes. %s', info[0], info[1]) : undefined;
           return undefined;
         }
       });
-    } catch (x) {
-      // IE will fail on defineProperty (es5-shim/sham too)
     }
   };
   for (var fnName in deprecatedAPIs) {
@@ -5232,7 +5389,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactComponent;
 }).call(this,require('_process'))
-},{"./ReactNoopUpdateQueue":71,"_process":1,"fbjs/lib/emptyObject":138,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],34:[function(require,module,exports){
+},{"./ReactNoopUpdateQueue":72,"./canDefineProperty":107,"_process":1,"fbjs/lib/emptyObject":140,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],34:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -5274,7 +5431,7 @@ var ReactComponentBrowserEnvironment = {
 };
 
 module.exports = ReactComponentBrowserEnvironment;
-},{"./ReactDOMIDOperations":42,"./ReactMount":67}],35:[function(require,module,exports){
+},{"./ReactDOMIDOperations":43,"./ReactMount":68}],35:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -5328,7 +5485,7 @@ var ReactComponentEnvironment = {
 
 module.exports = ReactComponentEnvironment;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/invariant":145}],36:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/invariant":147}],36:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -5369,6 +5526,12 @@ function getDeclarationErrorAddendum(component) {
   }
   return '';
 }
+
+function StatelessComponent(Component) {}
+StatelessComponent.prototype.render = function () {
+  var Component = ReactInstanceMap.get(this)._currentElement.type;
+  return Component(this.props, this.context, this.updater);
+};
 
 /**
  * ------------------ The Life-Cycle of a Composite Component ------------------
@@ -5458,12 +5621,43 @@ var ReactCompositeComponentMixin = {
     var Component = this._currentElement.type;
 
     // Initialize the public class
-    var inst = new Component(publicProps, publicContext, ReactUpdateQueue);
+    var inst;
+    var renderedElement;
+
+    // This is a way to detect if Component is a stateless arrow function
+    // component, which is not newable. It might not be 100% reliable but is
+    // something we can do until we start detecting that Component extends
+    // React.Component. We already assume that typeof Component === 'function'.
+    var canInstantiate = ('prototype' in Component);
+
+    if (canInstantiate) {
+      if (process.env.NODE_ENV !== 'production') {
+        ReactCurrentOwner.current = this;
+        try {
+          inst = new Component(publicProps, publicContext, ReactUpdateQueue);
+        } finally {
+          ReactCurrentOwner.current = null;
+        }
+      } else {
+        inst = new Component(publicProps, publicContext, ReactUpdateQueue);
+      }
+    }
+
+    if (!canInstantiate || inst === null || inst === false || ReactElement.isValidElement(inst)) {
+      renderedElement = inst;
+      inst = new StatelessComponent(Component);
+    }
 
     if (process.env.NODE_ENV !== 'production') {
       // This will throw later in _renderValidatedComponent, but add an early
       // warning now to help debugging
-      process.env.NODE_ENV !== 'production' ? warning(inst.render != null, '%s(...): No `render` method found on the returned component ' + 'instance: you may have forgotten to define `render` in your ' + 'component or you may have accidentally tried to render an element ' + 'whose type is a function that isn\'t a React component.', Component.displayName || Component.name || 'Component') : undefined;
+      if (inst.render == null) {
+        process.env.NODE_ENV !== 'production' ? warning(false, '%s(...): No `render` method found on the returned component ' + 'instance: you may have forgotten to define `render`, returned ' + 'null/false from a stateless component, or tried to render an ' + 'element whose type is a function that isn\'t a React component.', Component.displayName || Component.name || 'Component') : undefined;
+      } else {
+        // We support ES6 inheriting from React.Component, the module pattern,
+        // and stateless components, but not ES6 classes that don't extend
+        process.env.NODE_ENV !== 'production' ? warning(Component.prototype && Component.prototype.isReactComponent || !canInstantiate || !(inst instanceof Component), '%s(...): React component classes must extend React.Component.', Component.displayName || Component.name || 'Component') : undefined;
+      }
     }
 
     // These should be set up in the constructor, but as a convenience for
@@ -5510,7 +5704,10 @@ var ReactCompositeComponentMixin = {
       }
     }
 
-    var renderedElement = this._renderValidatedComponent();
+    // If not a stateless component, we now render
+    if (renderedElement === undefined) {
+      renderedElement = this._renderValidatedComponent();
+    }
 
     this._renderedComponent = this._instantiateReactComponent(renderedElement);
 
@@ -5537,6 +5734,7 @@ var ReactCompositeComponentMixin = {
 
     ReactReconciler.unmountComponent(this._renderedComponent);
     this._renderedComponent = null;
+    this._instance = null;
 
     // Reset pending fields
     // Even if this component is scheduled for another update in ReactUpdates,
@@ -5672,7 +5870,7 @@ var ReactCompositeComponentMixin = {
         }
         if (error instanceof Error) {
           // We may want to extend this logic for similar errors in
-          // React.render calls, so I'm abstracting it away into
+          // top-level render calls, so I'm abstracting it away into
           // a function to minimize refactoring in the future
           var addendum = getDeclarationErrorAddendum(this);
 
@@ -5915,8 +6113,14 @@ var ReactCompositeComponentMixin = {
    */
   attachRef: function (ref, component) {
     var inst = this.getPublicInstance();
+    !(inst != null) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Stateless function components cannot have refs.') : invariant(false) : undefined;
+    var publicComponentInstance = component.getPublicInstance();
+    if (process.env.NODE_ENV !== 'production') {
+      var componentName = component && component.getName ? component.getName() : 'a component';
+      process.env.NODE_ENV !== 'production' ? warning(publicComponentInstance != null, 'Stateless function components cannot be given refs ' + '(See ref "%s" in %s created by %s). ' + 'Attempts to access this ref will fail.', ref, componentName, this.getName()) : undefined;
+    }
     var refs = inst.refs === emptyObject ? inst.refs = {} : inst.refs;
-    refs[ref] = component.getPublicInstance();
+    refs[ref] = publicComponentInstance;
   },
 
   /**
@@ -5945,14 +6149,18 @@ var ReactCompositeComponentMixin = {
 
   /**
    * Get the publicly accessible representation of this component - i.e. what
-   * is exposed by refs and returned by React.render. Can be null for stateless
+   * is exposed by refs and returned by render. Can be null for stateless
    * components.
    *
    * @return {ReactComponent} the public component instance.
    * @internal
    */
   getPublicInstance: function () {
-    return this._instance;
+    var inst = this._instance;
+    if (inst instanceof StatelessComponent) {
+      return null;
+    }
+    return inst;
   },
 
   // Stub
@@ -5974,7 +6182,7 @@ var ReactCompositeComponent = {
 
 module.exports = ReactCompositeComponent;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./ReactComponentEnvironment":35,"./ReactCurrentOwner":37,"./ReactElement":54,"./ReactInstanceMap":64,"./ReactPerf":73,"./ReactPropTypeLocationNames":74,"./ReactPropTypeLocations":75,"./ReactReconciler":78,"./ReactUpdateQueue":84,"./shouldUpdateReactComponent":127,"_process":1,"fbjs/lib/emptyObject":138,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],37:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactComponentEnvironment":35,"./ReactCurrentOwner":37,"./ReactElement":55,"./ReactInstanceMap":65,"./ReactPerf":74,"./ReactPropTypeLocationNames":75,"./ReactPropTypeLocations":76,"./ReactReconciler":79,"./ReactUpdateQueue":85,"./shouldUpdateReactComponent":129,"_process":1,"fbjs/lib/emptyObject":140,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],37:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -6030,6 +6238,7 @@ var ReactMount = require('./ReactMount');
 var ReactPerf = require('./ReactPerf');
 var ReactReconciler = require('./ReactReconciler');
 var ReactUpdates = require('./ReactUpdates');
+var ReactVersion = require('./ReactVersion');
 
 var findDOMNode = require('./findDOMNode');
 var renderSubtreeIntoContainer = require('./renderSubtreeIntoContainer');
@@ -6043,6 +6252,7 @@ var React = {
   findDOMNode: findDOMNode,
   render: render,
   unmountComponentAtNode: ReactMount.unmountComponentAtNode,
+  version: ReactVersion,
 
   /* eslint-disable camelcase */
   unstable_batchedUpdates: ReactUpdates.batchedUpdates,
@@ -6066,15 +6276,15 @@ if (process.env.NODE_ENV !== 'production') {
   var ExecutionEnvironment = require('fbjs/lib/ExecutionEnvironment');
   if (ExecutionEnvironment.canUseDOM && window.top === window.self) {
 
-    // If we're in Chrome, look for the devtools marker and provide a download
-    // link if not installed.
-    if (navigator.userAgent.indexOf('Chrome') > -1) {
-      if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'undefined') {
+    // First check if devtools is not installed
+    if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ === 'undefined') {
+      // If we're in Chrome or Firefox, provide a download link if not installed.
+      if (navigator.userAgent.indexOf('Chrome') > -1 && navigator.userAgent.indexOf('Edge') === -1 || navigator.userAgent.indexOf('Firefox') > -1) {
         console.debug('Download the React DevTools for a better development experience: ' + 'https://fb.me/react-devtools');
       }
     }
 
-    // If we're in IE8, check to see if we are in combatibility mode and provide
+    // If we're in IE8, check to see if we are in compatibility mode and provide
     // information on preventing compatibility mode
     var ieCompatibilityMode = document.documentMode && document.documentMode < 8;
 
@@ -6098,7 +6308,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = React;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":37,"./ReactDOMTextComponent":48,"./ReactDefaultInjection":51,"./ReactInstanceHandles":63,"./ReactMount":67,"./ReactPerf":73,"./ReactReconciler":78,"./ReactUpdates":85,"./findDOMNode":108,"./renderSubtreeIntoContainer":124,"_process":1,"fbjs/lib/ExecutionEnvironment":131,"fbjs/lib/warning":155}],39:[function(require,module,exports){
+},{"./ReactCurrentOwner":37,"./ReactDOMTextComponent":49,"./ReactDefaultInjection":52,"./ReactInstanceHandles":64,"./ReactMount":68,"./ReactPerf":74,"./ReactReconciler":79,"./ReactUpdates":86,"./ReactVersion":87,"./findDOMNode":111,"./renderSubtreeIntoContainer":126,"_process":1,"fbjs/lib/ExecutionEnvironment":133,"fbjs/lib/warning":158}],39:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -6185,10 +6395,13 @@ var ReactPerf = require('./ReactPerf');
 var ReactUpdateQueue = require('./ReactUpdateQueue');
 
 var assign = require('./Object.assign');
+var canDefineProperty = require('./canDefineProperty');
 var escapeTextContentForBrowser = require('./escapeTextContentForBrowser');
 var invariant = require('fbjs/lib/invariant');
 var isEventSupported = require('./isEventSupported');
 var keyOf = require('fbjs/lib/keyOf');
+var setInnerHTML = require('./setInnerHTML');
+var setTextContent = require('./setTextContent');
 var shallowEqual = require('fbjs/lib/shallowEqual');
 var validateDOMNesting = require('./validateDOMNesting');
 var warning = require('fbjs/lib/warning');
@@ -6200,15 +6413,11 @@ var registrationNameModules = ReactBrowserEventEmitter.registrationNameModules;
 // For quickly matching children type, to test if can be treated as content.
 var CONTENT_TYPES = { 'string': true, 'number': true };
 
+var CHILDREN = keyOf({ children: null });
 var STYLE = keyOf({ style: null });
+var HTML = keyOf({ __html: null });
 
 var ELEMENT_NODE_TYPE = 1;
-
-var canDefineProperty = false;
-try {
-  Object.defineProperty({}, 'test', { get: function () {} });
-  canDefineProperty = true;
-} catch (e) {}
 
 function getDeclarationErrorAddendum(internalInstance) {
   if (internalInstance) {
@@ -6263,7 +6472,7 @@ function legacySetStateEtc() {
 function legacySetProps(partialProps, callback) {
   var component = this._reactInternalComponent;
   if (process.env.NODE_ENV !== 'production') {
-    process.env.NODE_ENV !== 'production' ? warning(false, 'ReactDOMComponent: Do not access .setProps() of a DOM node. ' + 'Instead, call React.render again at the top level.%s', getDeclarationErrorAddendum(component)) : undefined;
+    process.env.NODE_ENV !== 'production' ? warning(false, 'ReactDOMComponent: Do not access .setProps() of a DOM node. ' + 'Instead, call ReactDOM.render again at the top level.%s', getDeclarationErrorAddendum(component)) : undefined;
   }
   if (!component) {
     return;
@@ -6277,7 +6486,7 @@ function legacySetProps(partialProps, callback) {
 function legacyReplaceProps(partialProps, callback) {
   var component = this._reactInternalComponent;
   if (process.env.NODE_ENV !== 'production') {
-    process.env.NODE_ENV !== 'production' ? warning(false, 'ReactDOMComponent: Do not access .replaceProps() of a DOM node. ' + 'Instead, call React.render again at the top level.%s', getDeclarationErrorAddendum(component)) : undefined;
+    process.env.NODE_ENV !== 'production' ? warning(false, 'ReactDOMComponent: Do not access .replaceProps() of a DOM node. ' + 'Instead, call ReactDOM.render again at the top level.%s', getDeclarationErrorAddendum(component)) : undefined;
   }
   if (!component) {
     return;
@@ -6286,6 +6495,30 @@ function legacyReplaceProps(partialProps, callback) {
   if (callback) {
     ReactUpdateQueue.enqueueCallbackInternal(component, callback);
   }
+}
+
+function friendlyStringify(obj) {
+  if (typeof obj === 'object') {
+    if (Array.isArray(obj)) {
+      return '[' + obj.map(friendlyStringify).join(', ') + ']';
+    } else {
+      var pairs = [];
+      for (var key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          var keyEscaped = /^[a-z$_][\w$_]*$/i.test(key) ? key : JSON.stringify(key);
+          pairs.push(keyEscaped + ': ' + friendlyStringify(obj[key]));
+        }
+      }
+      return '{' + pairs.join(', ') + '}';
+    }
+  } else if (typeof obj === 'string') {
+    return JSON.stringify(obj);
+  } else if (typeof obj === 'function') {
+    return '[function object]';
+  }
+  // Differs from JSON.stringify in that undefined becauses undefined and that
+  // inf and nan don't become null
+  return String(obj);
 }
 
 var styleMutationWarning = {};
@@ -6313,13 +6546,8 @@ function checkAndWarnForMutatedStyle(style1, style2, component) {
 
   styleMutationWarning[hash] = true;
 
-  process.env.NODE_ENV !== 'production' ? warning(false, '`%s` was passed a style object that has previously been mutated. ' + 'Mutating `style` is deprecated. Consider cloning it beforehand. Check ' + 'the `render` %s. Previous style: %s. Mutated style: %s.', componentName, owner ? 'of `' + ownerName + '`' : 'using <' + componentName + '>', JSON.stringify(style1), JSON.stringify(style2)) : undefined;
+  process.env.NODE_ENV !== 'production' ? warning(false, '`%s` was passed a style object that has previously been mutated. ' + 'Mutating `style` is deprecated. Consider cloning it beforehand. Check ' + 'the `render` %s. Previous style: %s. Mutated style: %s.', componentName, owner ? 'of `' + ownerName + '`' : 'using <' + componentName + '>', friendlyStringify(style1), friendlyStringify(style2)) : undefined;
 }
-
-/**
- * Optionally injectable operations for mutating the DOM
- */
-var BackendIDOperations = null;
 
 /**
  * @param {object} component
@@ -6337,13 +6565,13 @@ function assertValidProps(component, props) {
   }
   if (props.dangerouslySetInnerHTML != null) {
     !(props.children == null) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Can only set one of `children` or `props.dangerouslySetInnerHTML`.') : invariant(false) : undefined;
-    !(typeof props.dangerouslySetInnerHTML === 'object' && '__html' in props.dangerouslySetInnerHTML) ? process.env.NODE_ENV !== 'production' ? invariant(false, '`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://fb.me/react-invariant-dangerously-set-inner-html ' + 'for more information.') : invariant(false) : undefined;
+    !(typeof props.dangerouslySetInnerHTML === 'object' && HTML in props.dangerouslySetInnerHTML) ? process.env.NODE_ENV !== 'production' ? invariant(false, '`props.dangerouslySetInnerHTML` must be in the form `{__html: ...}`. ' + 'Please visit https://fb.me/react-invariant-dangerously-set-inner-html ' + 'for more information.') : invariant(false) : undefined;
   }
   if (process.env.NODE_ENV !== 'production') {
     process.env.NODE_ENV !== 'production' ? warning(props.innerHTML == null, 'Directly setting property `innerHTML` is not permitted. ' + 'For more information, lookup documentation on `dangerouslySetInnerHTML`.') : undefined;
     process.env.NODE_ENV !== 'production' ? warning(!props.contentEditable || props.children == null, 'A component is `contentEditable` and contains `children` managed by ' + 'React. It is now your responsibility to guarantee that none of ' + 'those nodes are unexpectedly modified or duplicated. This is ' + 'probably not intentional.') : undefined;
   }
-  !(props.style == null || typeof props.style === 'object') ? process.env.NODE_ENV !== 'production' ? invariant(false, 'The `style` prop expects a mapping from style properties to values, ' + 'not a string. For example, style={{marginRight: spacing + \'em\'}} when ' + 'using JSX.') : invariant(false) : undefined;
+  !(props.style == null || typeof props.style === 'object') ? process.env.NODE_ENV !== 'production' ? invariant(false, 'The `style` prop expects a mapping from style properties to values, ' + 'not a string. For example, style={{marginRight: spacing + \'em\'}} when ' + 'using JSX.%s', getDeclarationErrorAddendum(component)) : invariant(false) : undefined;
 }
 
 function enqueuePutListener(id, registrationName, listener, transaction) {
@@ -6430,6 +6658,10 @@ function trapBubbledEventsLocal() {
   }
 }
 
+function mountReadyInputWrapper() {
+  ReactDOMInput.mountReadyWrapper(this);
+}
+
 function postUpdateSelectWrapper() {
   ReactDOMSelect.postUpdateWrapper(this);
 }
@@ -6484,13 +6716,11 @@ function validateDangerousTag(tag) {
   }
 }
 
-function processChildContext(context, inst) {
-  if (process.env.NODE_ENV !== 'production') {
-    // Pass down our tag name to child components for validation purposes
-    context = assign({}, context);
-    var info = context[validateDOMNesting.ancestorInfoContextKey];
-    context[validateDOMNesting.ancestorInfoContextKey] = validateDOMNesting.updatedAncestorInfo(info, inst._tag, inst);
-  }
+function processChildContextDev(context, inst) {
+  // Pass down our tag name to child components for validation purposes
+  context = assign({}, context);
+  var info = context[validateDOMNesting.ancestorInfoContextKey];
+  context[validateDOMNesting.ancestorInfoContextKey] = validateDOMNesting.updatedAncestorInfo(info, inst._tag, inst);
   return context;
 }
 
@@ -6522,6 +6752,10 @@ function ReactDOMComponent(tag) {
   this._wrapperState = null;
   this._topLevelWrapper = null;
   this._nodeWithLegacyProperties = null;
+  if (process.env.NODE_ENV !== 'production') {
+    this._unprocessedContextDev = null;
+    this._processedContextDev = null;
+  }
 }
 
 ReactDOMComponent.displayName = 'ReactDOMComponent';
@@ -6587,12 +6821,37 @@ ReactDOMComponent.Mixin = {
       }
     }
 
-    var tagOpen = this._createOpenTagMarkupAndPutListeners(transaction, props);
-    var tagContent = this._createContentMarkup(transaction, props, context);
+    if (process.env.NODE_ENV !== 'production') {
+      this._unprocessedContextDev = context;
+      this._processedContextDev = processChildContextDev(context, this);
+      context = this._processedContextDev;
+    }
+
+    var mountImage;
+    if (transaction.useCreateElement) {
+      var ownerDocument = context[ReactMount.ownerDocumentContextKey];
+      var el = ownerDocument.createElement(this._currentElement.type);
+      DOMPropertyOperations.setAttributeForID(el, this._rootNodeID);
+      // Populate node cache
+      ReactMount.getID(el);
+      this._updateDOMProperties({}, props, transaction, el);
+      this._createInitialChildren(transaction, props, context, el);
+      mountImage = el;
+    } else {
+      var tagOpen = this._createOpenTagMarkupAndPutListeners(transaction, props);
+      var tagContent = this._createContentMarkup(transaction, props, context);
+      if (!tagContent && omittedCloseTags[this._tag]) {
+        mountImage = tagOpen + '/>';
+      } else {
+        mountImage = tagOpen + '>' + tagContent + '</' + this._currentElement.type + '>';
+      }
+    }
 
     switch (this._tag) {
-      case 'button':
       case 'input':
+        transaction.getReactMountReady().enqueue(mountReadyInputWrapper, this);
+      // falls through
+      case 'button':
       case 'select':
       case 'textarea':
         if (props.autoFocus) {
@@ -6601,10 +6860,7 @@ ReactDOMComponent.Mixin = {
         break;
     }
 
-    if (!tagContent && omittedCloseTags[this._tag]) {
-      return tagOpen + '/>';
-    }
-    return tagOpen + '>' + tagContent + '</' + this._currentElement.type + '>';
+    return mountImage;
   },
 
   /**
@@ -6632,7 +6888,9 @@ ReactDOMComponent.Mixin = {
         continue;
       }
       if (registrationNameModules.hasOwnProperty(propKey)) {
-        enqueuePutListener(this._rootNodeID, propKey, propValue, transaction);
+        if (propValue) {
+          enqueuePutListener(this._rootNodeID, propKey, propValue, transaction);
+        }
       } else {
         if (propKey === STYLE) {
           if (propValue) {
@@ -6646,7 +6904,9 @@ ReactDOMComponent.Mixin = {
         }
         var markup = null;
         if (this._tag != null && isCustomComponent(this._tag, props)) {
-          markup = DOMPropertyOperations.createMarkupForCustomAttribute(propKey, propValue);
+          if (propKey !== CHILDREN) {
+            markup = DOMPropertyOperations.createMarkupForCustomAttribute(propKey, propValue);
+          }
         } else {
           markup = DOMPropertyOperations.createMarkupForProperty(propKey, propValue);
         }
@@ -6691,7 +6951,7 @@ ReactDOMComponent.Mixin = {
         // TODO: Validate that text is allowed as a child of this node
         ret = escapeTextContentForBrowser(contentToUse);
       } else if (childrenToUse != null) {
-        var mountImages = this.mountChildren(childrenToUse, transaction, processChildContext(context, this));
+        var mountImages = this.mountChildren(childrenToUse, transaction, context);
         ret = mountImages.join('');
       }
     }
@@ -6709,6 +6969,28 @@ ReactDOMComponent.Mixin = {
       return '\n' + ret;
     } else {
       return ret;
+    }
+  },
+
+  _createInitialChildren: function (transaction, props, context, el) {
+    // Intentional use of != to avoid catching zero/false.
+    var innerHTML = props.dangerouslySetInnerHTML;
+    if (innerHTML != null) {
+      if (innerHTML.__html != null) {
+        setInnerHTML(el, innerHTML.__html);
+      }
+    } else {
+      var contentToUse = CONTENT_TYPES[typeof props.children] ? props.children : null;
+      var childrenToUse = contentToUse != null ? null : props.children;
+      if (contentToUse != null) {
+        // TODO: Validate that text is allowed as a child of this node
+        setTextContent(el, contentToUse);
+      } else if (childrenToUse != null) {
+        var mountImages = this.mountChildren(childrenToUse, transaction, context);
+        for (var i = 0; i < mountImages.length; i++) {
+          el.appendChild(mountImages[i]);
+        }
+      }
     }
   },
 
@@ -6765,9 +7047,20 @@ ReactDOMComponent.Mixin = {
         break;
     }
 
+    if (process.env.NODE_ENV !== 'production') {
+      // If the context is reference-equal to the old one, pass down the same
+      // processed object so the update bailout in ReactReconciler behaves
+      // correctly (and identically in dev and prod). See #5005.
+      if (this._unprocessedContextDev !== context) {
+        this._unprocessedContextDev = context;
+        this._processedContextDev = processChildContextDev(context, this);
+      }
+      context = this._processedContextDev;
+    }
+
     assertValidProps(this, nextProps);
-    this._updateDOMProperties(lastProps, nextProps, transaction);
-    this._updateDOMChildren(lastProps, nextProps, transaction, processChildContext(context, this));
+    this._updateDOMProperties(lastProps, nextProps, transaction, null);
+    this._updateDOMChildren(lastProps, nextProps, transaction, context);
 
     if (!canDefineProperty && this._nodeWithLegacyProperties) {
       this._nodeWithLegacyProperties.props = nextProps;
@@ -6795,8 +7088,9 @@ ReactDOMComponent.Mixin = {
    * @param {object} lastProps
    * @param {object} nextProps
    * @param {ReactReconcileTransaction} transaction
+   * @param {?DOMElement} node
    */
-  _updateDOMProperties: function (lastProps, nextProps, transaction) {
+  _updateDOMProperties: function (lastProps, nextProps, transaction, node) {
     var propKey;
     var styleName;
     var styleUpdates;
@@ -6821,7 +7115,10 @@ ReactDOMComponent.Mixin = {
           deleteListener(this._rootNodeID, propKey);
         }
       } else if (DOMProperty.properties[propKey] || DOMProperty.isCustomAttribute(propKey)) {
-        BackendIDOperations.deletePropertyByID(this._rootNodeID, propKey);
+        if (!node) {
+          node = ReactMount.getNode(this._rootNodeID);
+        }
+        DOMPropertyOperations.deleteValueForProperty(node, propKey);
       }
     }
     for (propKey in nextProps) {
@@ -6866,13 +7163,32 @@ ReactDOMComponent.Mixin = {
           deleteListener(this._rootNodeID, propKey);
         }
       } else if (isCustomComponent(this._tag, nextProps)) {
-        BackendIDOperations.updateAttributeByID(this._rootNodeID, propKey, nextProp);
+        if (!node) {
+          node = ReactMount.getNode(this._rootNodeID);
+        }
+        if (propKey === CHILDREN) {
+          nextProp = null;
+        }
+        DOMPropertyOperations.setValueForAttribute(node, propKey, nextProp);
       } else if (DOMProperty.properties[propKey] || DOMProperty.isCustomAttribute(propKey)) {
-        BackendIDOperations.updatePropertyByID(this._rootNodeID, propKey, nextProp);
+        if (!node) {
+          node = ReactMount.getNode(this._rootNodeID);
+        }
+        // If we're updating to null or undefined, we should remove the property
+        // from the DOM node instead of inadvertantly setting to a string. This
+        // brings us in line with the same behavior we have on initial render.
+        if (nextProp != null) {
+          DOMPropertyOperations.setValueForProperty(node, propKey, nextProp);
+        } else {
+          DOMPropertyOperations.deleteValueForProperty(node, propKey);
+        }
       }
     }
     if (styleUpdates) {
-      BackendIDOperations.updateStylesByID(this._rootNodeID, styleUpdates);
+      if (!node) {
+        node = ReactMount.getNode(this._rootNodeID);
+      }
+      CSSPropertyOperations.setValueForStyles(node, styleUpdates);
     }
   },
 
@@ -7006,15 +7322,9 @@ ReactPerf.measureMethods(ReactDOMComponent, 'ReactDOMComponent', {
 
 assign(ReactDOMComponent.prototype, ReactDOMComponent.Mixin, ReactMultiChild.Mixin);
 
-ReactDOMComponent.injection = {
-  injectIDOperations: function (IDOperations) {
-    ReactDOMComponent.BackendIDOperations = BackendIDOperations = IDOperations;
-  }
-};
-
 module.exports = ReactDOMComponent;
 }).call(this,require('_process'))
-},{"./AutoFocusUtils":4,"./CSSPropertyOperations":7,"./DOMProperty":12,"./DOMPropertyOperations":13,"./EventConstants":17,"./Object.assign":25,"./ReactBrowserEventEmitter":29,"./ReactComponentBrowserEnvironment":34,"./ReactDOMButton":39,"./ReactDOMInput":43,"./ReactDOMOption":44,"./ReactDOMSelect":45,"./ReactDOMTextarea":49,"./ReactMount":67,"./ReactMultiChild":68,"./ReactPerf":73,"./ReactUpdateQueue":84,"./escapeTextContentForBrowser":107,"./isEventSupported":119,"./validateDOMNesting":129,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/keyOf":149,"fbjs/lib/shallowEqual":153,"fbjs/lib/warning":155}],41:[function(require,module,exports){
+},{"./AutoFocusUtils":4,"./CSSPropertyOperations":7,"./DOMProperty":12,"./DOMPropertyOperations":13,"./EventConstants":17,"./Object.assign":25,"./ReactBrowserEventEmitter":29,"./ReactComponentBrowserEnvironment":34,"./ReactDOMButton":39,"./ReactDOMInput":44,"./ReactDOMOption":45,"./ReactDOMSelect":46,"./ReactDOMTextarea":50,"./ReactMount":68,"./ReactMultiChild":69,"./ReactPerf":74,"./ReactUpdateQueue":85,"./canDefineProperty":107,"./escapeTextContentForBrowser":110,"./isEventSupported":122,"./setInnerHTML":127,"./setTextContent":128,"./validateDOMNesting":131,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/keyOf":151,"fbjs/lib/shallowEqual":156,"fbjs/lib/warning":158}],41:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -7194,7 +7504,26 @@ var ReactDOMFactories = mapObject({
 
 module.exports = ReactDOMFactories;
 }).call(this,require('_process'))
-},{"./ReactElement":54,"./ReactElementValidator":55,"_process":1,"fbjs/lib/mapObject":150}],42:[function(require,module,exports){
+},{"./ReactElement":55,"./ReactElementValidator":56,"_process":1,"fbjs/lib/mapObject":152}],42:[function(require,module,exports){
+/**
+ * Copyright 2013-2015, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule ReactDOMFeatureFlags
+ */
+
+'use strict';
+
+var ReactDOMFeatureFlags = {
+  useCreateElement: false
+};
+
+module.exports = ReactDOMFeatureFlags;
+},{}],43:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -7210,7 +7539,6 @@ module.exports = ReactDOMFactories;
 
 'use strict';
 
-var CSSPropertyOperations = require('./CSSPropertyOperations');
 var DOMChildrenOperations = require('./DOMChildrenOperations');
 var DOMPropertyOperations = require('./DOMPropertyOperations');
 var ReactMount = require('./ReactMount');
@@ -7230,8 +7558,7 @@ var INVALID_PROPERTY_ERRORS = {
 };
 
 /**
- * Operations used to process updates to DOM nodes. This is made injectable via
- * `ReactDOMComponent.BackendIDOperations`.
+ * Operations used to process updates to DOM nodes.
  */
 var ReactDOMIDOperations = {
 
@@ -7256,59 +7583,6 @@ var ReactDOMIDOperations = {
     } else {
       DOMPropertyOperations.deleteValueForProperty(node, name);
     }
-  },
-
-  /**
-   * Updates a DOM node with new property values.
-   *
-   * @param {string} id ID of the node to update.
-   * @param {string} name A valid property name.
-   * @param {*} value New value of the property.
-   * @internal
-   */
-  updateAttributeByID: function (id, name, value) {
-    var node = ReactMount.getNode(id);
-    !!INVALID_PROPERTY_ERRORS.hasOwnProperty(name) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'updatePropertyByID(...): %s', INVALID_PROPERTY_ERRORS[name]) : invariant(false) : undefined;
-    DOMPropertyOperations.setValueForAttribute(node, name, value);
-  },
-
-  /**
-   * Updates a DOM node to remove a property. This should only be used to remove
-   * DOM properties in `DOMProperty`.
-   *
-   * @param {string} id ID of the node to update.
-   * @param {string} name A property name to remove, see `DOMProperty`.
-   * @internal
-   */
-  deletePropertyByID: function (id, name, value) {
-    var node = ReactMount.getNode(id);
-    !!INVALID_PROPERTY_ERRORS.hasOwnProperty(name) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'updatePropertyByID(...): %s', INVALID_PROPERTY_ERRORS[name]) : invariant(false) : undefined;
-    DOMPropertyOperations.deleteValueForProperty(node, name, value);
-  },
-
-  /**
-   * Updates a DOM node with new style values. If a value is specified as '',
-   * the corresponding style property will be unset.
-   *
-   * @param {string} id ID of the node to update.
-   * @param {object} styles Mapping from styles to values.
-   * @internal
-   */
-  updateStylesByID: function (id, styles) {
-    var node = ReactMount.getNode(id);
-    CSSPropertyOperations.setValueForStyles(node, styles);
-  },
-
-  /**
-   * Updates a DOM node's text content set by `props.content`.
-   *
-   * @param {string} id ID of the node to update.
-   * @param {string} content Text content.
-   * @internal
-   */
-  updateTextContentByID: function (id, content) {
-    var node = ReactMount.getNode(id);
-    DOMChildrenOperations.updateTextContent(node, content);
   },
 
   /**
@@ -7340,17 +7614,13 @@ var ReactDOMIDOperations = {
 };
 
 ReactPerf.measureMethods(ReactDOMIDOperations, 'ReactDOMIDOperations', {
-  updatePropertyByID: 'updatePropertyByID',
-  deletePropertyByID: 'deletePropertyByID',
-  updateStylesByID: 'updateStylesByID',
-  updateTextContentByID: 'updateTextContentByID',
   dangerouslyReplaceNodeWithMarkupByID: 'dangerouslyReplaceNodeWithMarkupByID',
   dangerouslyProcessChildrenUpdates: 'dangerouslyProcessChildrenUpdates'
 });
 
 module.exports = ReactDOMIDOperations;
 }).call(this,require('_process'))
-},{"./CSSPropertyOperations":7,"./DOMChildrenOperations":11,"./DOMPropertyOperations":13,"./ReactMount":67,"./ReactPerf":73,"_process":1,"fbjs/lib/invariant":145}],43:[function(require,module,exports){
+},{"./DOMChildrenOperations":11,"./DOMPropertyOperations":13,"./ReactMount":68,"./ReactPerf":74,"_process":1,"fbjs/lib/invariant":147}],44:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -7415,7 +7685,9 @@ var ReactDOMInput = {
   },
 
   mountWrapper: function (inst, props) {
-    LinkedValueUtils.checkPropTypes('input', props, inst._currentElement._owner);
+    if (process.env.NODE_ENV !== 'production') {
+      LinkedValueUtils.checkPropTypes('input', props, inst._currentElement._owner);
+    }
 
     var defaultValue = props.defaultValue;
     inst._wrapperState = {
@@ -7423,7 +7695,10 @@ var ReactDOMInput = {
       initialValue: defaultValue != null ? defaultValue : null,
       onChange: _handleChange.bind(inst)
     };
+  },
 
+  mountReadyWrapper: function (inst) {
+    // Can't be in mountWrapper or else server rendering leaks.
     instancesByReactID[inst._rootNodeID] = inst;
   },
 
@@ -7481,6 +7756,10 @@ function _handleChange(event) {
       if (otherNode === rootNode || otherNode.form !== rootNode.form) {
         continue;
       }
+      // This will throw if radio buttons rendered by different copies of React
+      // and the same name are rendered into the same form (same as #1939).
+      // That's probably okay; we don't support it just as we don't support
+      // mixing React with non-React.
       var otherID = ReactMount.getID(otherNode);
       !otherID ? process.env.NODE_ENV !== 'production' ? invariant(false, 'ReactDOMInput: Mixing React and non-React radio inputs with the ' + 'same `name` is not supported.') : invariant(false) : undefined;
       var otherInstance = instancesByReactID[otherID];
@@ -7497,7 +7776,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMInput;
 }).call(this,require('_process'))
-},{"./LinkedValueUtils":24,"./Object.assign":25,"./ReactDOMIDOperations":42,"./ReactMount":67,"./ReactUpdates":85,"_process":1,"fbjs/lib/invariant":145}],44:[function(require,module,exports){
+},{"./LinkedValueUtils":24,"./Object.assign":25,"./ReactDOMIDOperations":43,"./ReactMount":68,"./ReactUpdates":86,"_process":1,"fbjs/lib/invariant":147}],45:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -7586,7 +7865,7 @@ var ReactDOMOption = {
 
 module.exports = ReactDOMOption;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./ReactChildren":31,"./ReactDOMSelect":45,"_process":1,"fbjs/lib/warning":155}],45:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactChildren":31,"./ReactDOMSelect":46,"_process":1,"fbjs/lib/warning":158}],46:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -7611,14 +7890,14 @@ var warning = require('fbjs/lib/warning');
 var valueContextKey = '__ReactDOMSelect_value$' + Math.random().toString(36).slice(2);
 
 function updateOptionsIfPendingUpdateAndMounted() {
-  if (this._wrapperState.pendingUpdate && this._rootNodeID) {
+  if (this._rootNodeID && this._wrapperState.pendingUpdate) {
     this._wrapperState.pendingUpdate = false;
 
     var props = this._currentElement.props;
     var value = LinkedValueUtils.getValue(props);
 
     if (value != null) {
-      updateOptions(this, props, value);
+      updateOptions(this, Boolean(props.multiple), value);
     }
   }
 }
@@ -7777,7 +8056,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMSelect;
 }).call(this,require('_process'))
-},{"./LinkedValueUtils":24,"./Object.assign":25,"./ReactMount":67,"./ReactUpdates":85,"_process":1,"fbjs/lib/warning":155}],46:[function(require,module,exports){
+},{"./LinkedValueUtils":24,"./Object.assign":25,"./ReactMount":68,"./ReactUpdates":86,"_process":1,"fbjs/lib/warning":158}],47:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -7855,6 +8134,22 @@ function getModernOffsets(node) {
   var focusOffset = selection.focusOffset;
 
   var currentRange = selection.getRangeAt(0);
+
+  // In Firefox, range.startContainer and range.endContainer can be "anonymous
+  // divs", e.g. the up/down buttons on an <input type="number">. Anonymous
+  // divs do not seem to expose properties, triggering a "Permission denied
+  // error" if any of its properties are accessed. The only seemingly possible
+  // way to avoid erroring is to access a property that typically works for
+  // non-anonymous divs and catch any error that may otherwise arise. See
+  // https://bugzilla.mozilla.org/show_bug.cgi?id=208427
+  try {
+    /* eslint-disable no-unused-expressions */
+    currentRange.startContainer.nodeType;
+    currentRange.endContainer.nodeType;
+    /* eslint-enable no-unused-expressions */
+  } catch (e) {
+    return null;
+  }
 
   // If the node and offset values are the same, the selection is collapsed.
   // `Selection.isCollapsed` is available natively, but IE sometimes gets
@@ -7974,7 +8269,7 @@ var ReactDOMSelection = {
 };
 
 module.exports = ReactDOMSelection;
-},{"./getNodeForCharacterOffset":116,"./getTextContentAccessor":117,"fbjs/lib/ExecutionEnvironment":131}],47:[function(require,module,exports){
+},{"./getNodeForCharacterOffset":119,"./getTextContentAccessor":120,"fbjs/lib/ExecutionEnvironment":133}],48:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -7990,16 +8285,18 @@ module.exports = ReactDOMSelection;
 
 var ReactDefaultInjection = require('./ReactDefaultInjection');
 var ReactServerRendering = require('./ReactServerRendering');
+var ReactVersion = require('./ReactVersion');
 
 ReactDefaultInjection.inject();
 
 var ReactDOMServer = {
   renderToString: ReactServerRendering.renderToString,
-  renderToStaticMarkup: ReactServerRendering.renderToStaticMarkup
+  renderToStaticMarkup: ReactServerRendering.renderToStaticMarkup,
+  version: ReactVersion
 };
 
 module.exports = ReactDOMServer;
-},{"./ReactDefaultInjection":51,"./ReactServerRendering":82}],48:[function(require,module,exports){
+},{"./ReactDefaultInjection":52,"./ReactServerRendering":83,"./ReactVersion":87}],49:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -8015,12 +8312,14 @@ module.exports = ReactDOMServer;
 
 'use strict';
 
+var DOMChildrenOperations = require('./DOMChildrenOperations');
 var DOMPropertyOperations = require('./DOMPropertyOperations');
 var ReactComponentBrowserEnvironment = require('./ReactComponentBrowserEnvironment');
-var ReactDOMComponent = require('./ReactDOMComponent');
+var ReactMount = require('./ReactMount');
 
 var assign = require('./Object.assign');
 var escapeTextContentForBrowser = require('./escapeTextContentForBrowser');
+var setTextContent = require('./setTextContent');
 var validateDOMNesting = require('./validateDOMNesting');
 
 /**
@@ -8075,16 +8374,26 @@ assign(ReactDOMTextComponent.prototype, {
     }
 
     this._rootNodeID = rootID;
-    var escapedText = escapeTextContentForBrowser(this._stringText);
+    if (transaction.useCreateElement) {
+      var ownerDocument = context[ReactMount.ownerDocumentContextKey];
+      var el = ownerDocument.createElement('span');
+      DOMPropertyOperations.setAttributeForID(el, rootID);
+      // Populate node cache
+      ReactMount.getID(el);
+      setTextContent(el, this._stringText);
+      return el;
+    } else {
+      var escapedText = escapeTextContentForBrowser(this._stringText);
 
-    if (transaction.renderToStaticMarkup) {
-      // Normally we'd wrap this in a `span` for the reasons stated above, but
-      // since this is a situation where React won't take over (static pages),
-      // we can simply return the text as it is.
-      return escapedText;
+      if (transaction.renderToStaticMarkup) {
+        // Normally we'd wrap this in a `span` for the reasons stated above, but
+        // since this is a situation where React won't take over (static pages),
+        // we can simply return the text as it is.
+        return escapedText;
+      }
+
+      return '<span ' + DOMPropertyOperations.createMarkupForID(rootID) + '>' + escapedText + '</span>';
     }
-
-    return '<span ' + DOMPropertyOperations.createMarkupForID(rootID) + '>' + escapedText + '</span>';
   },
 
   /**
@@ -8103,7 +8412,8 @@ assign(ReactDOMTextComponent.prototype, {
         // and/or updateComponent to do the actual update for consistency with
         // other component types?
         this._stringText = nextStringText;
-        ReactDOMComponent.BackendIDOperations.updateTextContentByID(this._rootNodeID, nextStringText);
+        var node = ReactMount.getNode(this._rootNodeID);
+        DOMChildrenOperations.updateTextContent(node, nextStringText);
       }
     }
   },
@@ -8116,7 +8426,7 @@ assign(ReactDOMTextComponent.prototype, {
 
 module.exports = ReactDOMTextComponent;
 }).call(this,require('_process'))
-},{"./DOMPropertyOperations":13,"./Object.assign":25,"./ReactComponentBrowserEnvironment":34,"./ReactDOMComponent":40,"./escapeTextContentForBrowser":107,"./validateDOMNesting":129,"_process":1}],49:[function(require,module,exports){
+},{"./DOMChildrenOperations":11,"./DOMPropertyOperations":13,"./Object.assign":25,"./ReactComponentBrowserEnvironment":34,"./ReactMount":68,"./escapeTextContentForBrowser":110,"./setTextContent":128,"./validateDOMNesting":131,"_process":1}],50:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -8178,7 +8488,9 @@ var ReactDOMTextarea = {
   },
 
   mountWrapper: function (inst, props) {
-    LinkedValueUtils.checkPropTypes('textarea', props, inst._currentElement._owner);
+    if (process.env.NODE_ENV !== 'production') {
+      LinkedValueUtils.checkPropTypes('textarea', props, inst._currentElement._owner);
+    }
 
     var defaultValue = props.defaultValue;
     // TODO (yungsters): Remove support for children content in <textarea>.
@@ -8230,7 +8542,7 @@ function _handleChange(event) {
 
 module.exports = ReactDOMTextarea;
 }).call(this,require('_process'))
-},{"./LinkedValueUtils":24,"./Object.assign":25,"./ReactDOMIDOperations":42,"./ReactUpdates":85,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],50:[function(require,module,exports){
+},{"./LinkedValueUtils":24,"./Object.assign":25,"./ReactDOMIDOperations":43,"./ReactUpdates":86,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],51:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -8298,7 +8610,7 @@ var ReactDefaultBatchingStrategy = {
 };
 
 module.exports = ReactDefaultBatchingStrategy;
-},{"./Object.assign":25,"./ReactUpdates":85,"./Transaction":101,"fbjs/lib/emptyFunction":137}],51:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactUpdates":86,"./Transaction":103,"fbjs/lib/emptyFunction":139}],52:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -8324,7 +8636,6 @@ var ReactBrowserComponentMixin = require('./ReactBrowserComponentMixin');
 var ReactComponentBrowserEnvironment = require('./ReactComponentBrowserEnvironment');
 var ReactDefaultBatchingStrategy = require('./ReactDefaultBatchingStrategy');
 var ReactDOMComponent = require('./ReactDOMComponent');
-var ReactDOMIDOperations = require('./ReactDOMIDOperations');
 var ReactDOMTextComponent = require('./ReactDOMTextComponent');
 var ReactEventListener = require('./ReactEventListener');
 var ReactInjection = require('./ReactInjection');
@@ -8385,7 +8696,6 @@ function inject() {
   ReactInjection.RootIndex.injectCreateReactRootIndex(ExecutionEnvironment.canUseDOM ? ClientReactRootIndex.createReactRootIndex : ServerReactRootIndex.createReactRootIndex);
 
   ReactInjection.Component.injectEnvironment(ReactComponentBrowserEnvironment);
-  ReactInjection.DOMComponent.injectIDOperations(ReactDOMIDOperations);
 
   if (process.env.NODE_ENV !== 'production') {
     var url = ExecutionEnvironment.canUseDOM && window.location.href || '';
@@ -8400,7 +8710,7 @@ module.exports = {
   inject: inject
 };
 }).call(this,require('_process'))
-},{"./BeforeInputEventPlugin":5,"./ChangeEventPlugin":9,"./ClientReactRootIndex":10,"./DefaultEventPluginOrder":15,"./EnterLeaveEventPlugin":16,"./HTMLDOMPropertyConfig":23,"./ReactBrowserComponentMixin":28,"./ReactComponentBrowserEnvironment":34,"./ReactDOMComponent":40,"./ReactDOMIDOperations":42,"./ReactDOMTextComponent":48,"./ReactDefaultBatchingStrategy":50,"./ReactDefaultPerf":52,"./ReactEventListener":59,"./ReactInjection":61,"./ReactInstanceHandles":63,"./ReactMount":67,"./ReactReconcileTransaction":77,"./SVGDOMPropertyConfig":86,"./SelectEventPlugin":87,"./ServerReactRootIndex":88,"./SimpleEventPlugin":89,"_process":1,"fbjs/lib/ExecutionEnvironment":131}],52:[function(require,module,exports){
+},{"./BeforeInputEventPlugin":5,"./ChangeEventPlugin":9,"./ClientReactRootIndex":10,"./DefaultEventPluginOrder":15,"./EnterLeaveEventPlugin":16,"./HTMLDOMPropertyConfig":23,"./ReactBrowserComponentMixin":28,"./ReactComponentBrowserEnvironment":34,"./ReactDOMComponent":40,"./ReactDOMTextComponent":49,"./ReactDefaultBatchingStrategy":51,"./ReactDefaultPerf":53,"./ReactEventListener":61,"./ReactInjection":62,"./ReactInstanceHandles":64,"./ReactMount":68,"./ReactReconcileTransaction":78,"./SVGDOMPropertyConfig":88,"./SelectEventPlugin":89,"./ServerReactRootIndex":90,"./SimpleEventPlugin":91,"_process":1,"fbjs/lib/ExecutionEnvironment":133}],53:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -8546,13 +8856,14 @@ var ReactDefaultPerf = {
           counts: {},
           writes: {},
           displayNames: {},
-          totalTime: 0
+          totalTime: 0,
+          created: {}
         });
         start = performanceNow();
         rv = func.apply(this, args);
         ReactDefaultPerf._allMeasurements[ReactDefaultPerf._allMeasurements.length - 1].totalTime = performanceNow() - start;
         return rv;
-      } else if (fnName === '_mountImageIntoNode' || moduleName === 'ReactDOMIDOperations') {
+      } else if (fnName === '_mountImageIntoNode' || moduleName === 'ReactBrowserEventEmitter' || moduleName === 'ReactDOMIDOperations' || moduleName === 'CSSPropertyOperations' || moduleName === 'DOMChildrenOperations' || moduleName === 'DOMPropertyOperations') {
         start = performanceNow();
         rv = func.apply(this, args);
         totalTime = performanceNow() - start;
@@ -8580,13 +8891,17 @@ var ReactDefaultPerf = {
           });
         } else {
           // basic format
-          ReactDefaultPerf._recordWrite(args[0], fnName, totalTime, Array.prototype.slice.call(args, 1));
+          var id = args[0];
+          if (typeof id === 'object') {
+            id = ReactMount.getID(args[0]);
+          }
+          ReactDefaultPerf._recordWrite(id, fnName, totalTime, Array.prototype.slice.call(args, 1));
         }
         return rv;
       } else if (moduleName === 'ReactCompositeComponent' && (fnName === 'mountComponent' || fnName === 'updateComponent' || // TODO: receiveComponent()?
       fnName === '_renderValidatedComponent')) {
 
-        if (typeof this._currentElement.type === 'string') {
+        if (this._currentElement.type === ReactMount.TopLevelWrapper) {
           return func.apply(this, args);
         }
 
@@ -8600,6 +8915,7 @@ var ReactDefaultPerf = {
         if (isRender) {
           addValue(entry.counts, rootNodeID, 1);
         } else if (isMount) {
+          entry.created[rootNodeID] = true;
           mountStack.push(0);
         }
 
@@ -8632,7 +8948,7 @@ var ReactDefaultPerf = {
 };
 
 module.exports = ReactDefaultPerf;
-},{"./DOMProperty":12,"./ReactDefaultPerfAnalysis":53,"./ReactMount":67,"./ReactPerf":73,"fbjs/lib/performanceNow":152}],53:[function(require,module,exports){
+},{"./DOMProperty":12,"./ReactDefaultPerfAnalysis":54,"./ReactMount":68,"./ReactPerf":74,"fbjs/lib/performanceNow":155}],54:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -8657,10 +8973,12 @@ var DOM_OPERATION_TYPES = {
   REMOVE_NODE: 'remove',
   SET_MARKUP: 'set innerHTML',
   TEXT_CONTENT: 'set textContent',
-  'updatePropertyByID': 'update attribute',
-  'deletePropertyByID': 'delete attribute',
-  'updateStylesByID': 'update styles',
-  'dangerouslyReplaceNodeWithMarkupByID': 'replace'
+  'setValueForProperty': 'update attribute',
+  'setValueForAttribute': 'update attribute',
+  'deleteValueForProperty': 'remove attribute',
+  'setValueForStyles': 'update styles',
+  'replaceNodeWithMarkup': 'replace',
+  'updateTextContent': 'set textContent'
 };
 
 function getTotalTime(measurements) {
@@ -8813,6 +9131,10 @@ function getUnchangedComponents(measurement) {
         break;
       }
     }
+    // check if component newly created
+    if (measurement.created[id]) {
+      isDirty = true;
+    }
     if (!isDirty && measurement.counts[id] > 0) {
       cleanComponents[id] = true;
     }
@@ -8828,7 +9150,7 @@ var ReactDefaultPerfAnalysis = {
 };
 
 module.exports = ReactDefaultPerfAnalysis;
-},{"./Object.assign":25}],54:[function(require,module,exports){
+},{"./Object.assign":25}],55:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -8846,10 +9168,17 @@ module.exports = ReactDefaultPerfAnalysis;
 var ReactCurrentOwner = require('./ReactCurrentOwner');
 
 var assign = require('./Object.assign');
+var canDefineProperty = require('./canDefineProperty');
+
+// The Symbol used to tag the ReactElement type. If there is no native Symbol
+// nor polyfill, then a plain number is used for performance.
+var REACT_ELEMENT_TYPE = typeof Symbol === 'function' && Symbol['for'] && Symbol['for']('react.element') || 0xeac7;
 
 var RESERVED_PROPS = {
   key: true,
-  ref: true
+  ref: true,
+  __self: true,
+  __source: true
 };
 
 /**
@@ -8859,51 +9188,75 @@ var RESERVED_PROPS = {
  * @param {*} type
  * @param {*} key
  * @param {string|object} ref
+ * @param {*} self A *temporary* helper to detect places where `this` is
+ * different from the `owner` when React.createElement is called, so that we
+ * can warn. We want to get rid of owner and replace string `ref`s with arrow
+ * functions, and as long as `this` and owner are the same, there will be no
+ * change in behavior.
+ * @param {*} source An annotation object (added by a transpiler or otherwise)
+ * indicating filename, line number, and/or other information.
  * @param {*} owner
  * @param {*} props
  * @internal
  */
-var ReactElement = function (type, key, ref, owner, props) {
-  // Built-in properties that belong on the element
-  this.type = type;
-  this.key = key;
-  this.ref = ref;
+var ReactElement = function (type, key, ref, self, source, owner, props) {
+  var element = {
+    // This tag allow us to uniquely identify this as a React Element
+    $$typeof: REACT_ELEMENT_TYPE,
 
-  // Record the component responsible for creating this element.
-  this._owner = owner;
+    // Built-in properties that belong on the element
+    type: type,
+    key: key,
+    ref: ref,
+    props: props,
 
-  this.props = props;
+    // Record the component responsible for creating this element.
+    _owner: owner
+  };
 
   if (process.env.NODE_ENV !== 'production') {
     // The validation flag is currently mutative. We put it on
     // an external backing store so that we can freeze the whole object.
     // This can be replaced with a WeakMap once they are implemented in
     // commonly used development environments.
-    this._store = {};
+    element._store = {};
 
     // To make comparing ReactElements easier for testing purposes, we make
     // the validation flag non-enumerable (where possible, which should
     // include every environment we run tests in), so the test framework
     // ignores it.
-    try {
-      Object.defineProperty(this._store, 'validated', {
+    if (canDefineProperty) {
+      Object.defineProperty(element._store, 'validated', {
         configurable: false,
         enumerable: false,
         writable: true,
         value: false
       });
-    } catch (x) {
-      this._store.validated = false;
+      // self and source are DEV only properties.
+      Object.defineProperty(element, '_self', {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: self
+      });
+      // Two elements created in two different places should be considered
+      // equal for testing purposes and therefore we hide it from enumeration.
+      Object.defineProperty(element, '_source', {
+        configurable: false,
+        enumerable: false,
+        writable: false,
+        value: source
+      });
+    } else {
+      element._store.validated = false;
+      element._self = self;
+      element._source = source;
     }
-    Object.freeze(this.props);
-    Object.freeze(this);
+    Object.freeze(element.props);
+    Object.freeze(element);
   }
-};
 
-// We intentionally don't expose the function on the constructor property.
-// ReactElement should be indistinguishable from a plain object.
-ReactElement.prototype = {
-  _isReactElement: true
+  return element;
 };
 
 ReactElement.createElement = function (type, config, children) {
@@ -8914,10 +9267,14 @@ ReactElement.createElement = function (type, config, children) {
 
   var key = null;
   var ref = null;
+  var self = null;
+  var source = null;
 
   if (config != null) {
     ref = config.ref === undefined ? null : config.ref;
     key = config.key === undefined ? null : '' + config.key;
+    self = config.__self === undefined ? null : config.__self;
+    source = config.__source === undefined ? null : config.__source;
     // Remaining properties are added to a new props object
     for (propName in config) {
       if (config.hasOwnProperty(propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
@@ -8949,7 +9306,7 @@ ReactElement.createElement = function (type, config, children) {
     }
   }
 
-  return new ReactElement(type, key, ref, ReactCurrentOwner.current, props);
+  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
 };
 
 ReactElement.createFactory = function (type) {
@@ -8963,8 +9320,14 @@ ReactElement.createFactory = function (type) {
   return factory;
 };
 
+ReactElement.cloneAndReplaceKey = function (oldElement, newKey) {
+  var newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
+
+  return newElement;
+};
+
 ReactElement.cloneAndReplaceProps = function (oldElement, newProps) {
-  var newElement = new ReactElement(oldElement.type, oldElement.key, oldElement.ref, oldElement._owner, newProps);
+  var newElement = ReactElement(oldElement.type, oldElement.key, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, newProps);
 
   if (process.env.NODE_ENV !== 'production') {
     // If the key on the original is valid, then the clone is valid
@@ -8983,6 +9346,12 @@ ReactElement.cloneElement = function (element, config, children) {
   // Reserved names are extracted
   var key = element.key;
   var ref = element.ref;
+  // Self is preserved since the owner is preserved.
+  var self = element._self;
+  // Source is preserved since cloneElement is unlikely to be targeted by a
+  // transpiler, and the original source is probably a better indicator of the
+  // true owner.
+  var source = element._source;
 
   // Owner will be preserved, unless ref is overridden
   var owner = element._owner;
@@ -9017,7 +9386,7 @@ ReactElement.cloneElement = function (element, config, children) {
     props.children = childArray;
   }
 
-  return new ReactElement(element.type, key, ref, owner, props);
+  return ReactElement(element.type, key, ref, self, source, owner, props);
 };
 
 /**
@@ -9026,22 +9395,12 @@ ReactElement.cloneElement = function (element, config, children) {
  * @final
  */
 ReactElement.isValidElement = function (object) {
-  // ReactTestUtils is often used outside of beforeEach where as React is
-  // within it. This leads to two different instances of React on the same
-  // page. To identify a element from a different React instance we use
-  // a flag instead of an instanceof check.
-  var isElement = !!(object && object._isReactElement);
-  // if (isElement && !(object instanceof ReactElement)) {
-  // This is an indicator that you're using multiple versions of React at the
-  // same time. This will screw with ownership and stuff. Fix it, please.
-  // TODO: We could possibly warn here.
-  // }
-  return isElement;
+  return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 };
 
 module.exports = ReactElement;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./ReactCurrentOwner":37,"_process":1}],55:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactCurrentOwner":37,"./canDefineProperty":107,"_process":1}],56:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -9064,11 +9423,11 @@ module.exports = ReactElement;
 'use strict';
 
 var ReactElement = require('./ReactElement');
-var ReactFragment = require('./ReactFragment');
 var ReactPropTypeLocations = require('./ReactPropTypeLocations');
 var ReactPropTypeLocationNames = require('./ReactPropTypeLocationNames');
 var ReactCurrentOwner = require('./ReactCurrentOwner');
 
+var canDefineProperty = require('./canDefineProperty');
 var getIteratorFn = require('./getIteratorFn');
 var invariant = require('fbjs/lib/invariant');
 var warning = require('fbjs/lib/warning');
@@ -9092,37 +9451,6 @@ var ownerHasKeyUseWarning = {};
 
 var loggedTypeFailures = {};
 
-var NUMERIC_PROPERTY_REGEX = /^\d+$/;
-
-/**
- * Gets the instance's name for use in warnings.
- *
- * @internal
- * @return {?string} Display name or undefined
- */
-function getName(instance) {
-  var publicInstance = instance && instance.getPublicInstance();
-  if (!publicInstance) {
-    return undefined;
-  }
-  var constructor = publicInstance.constructor;
-  if (!constructor) {
-    return undefined;
-  }
-  return constructor.displayName || constructor.name || undefined;
-}
-
-/**
- * Gets the current owner's displayName for use in warnings.
- *
- * @internal
- * @return {?string} Display name or undefined
- */
-function getCurrentOwnerDisplayName() {
-  var current = ReactCurrentOwner.current;
-  return current && getName(current) || undefined;
-}
-
 /**
  * Warn if the element doesn't have an explicit key assigned to it.
  * This element is in an array. The array could grow and shrink or be
@@ -9134,7 +9462,7 @@ function getCurrentOwnerDisplayName() {
  * @param {*} parentType element's parent's type.
  */
 function validateExplicitKey(element, parentType) {
-  if (element._store.validated || element.key != null) {
+  if (!element._store || element._store.validated || element.key != null) {
     return;
   }
   element._store.validated = true;
@@ -9148,27 +9476,6 @@ function validateExplicitKey(element, parentType) {
 }
 
 /**
- * Warn if the key is being defined as an object property but has an incorrect
- * value.
- *
- * @internal
- * @param {string} name Property name of the key.
- * @param {ReactElement} element Component that requires a key.
- * @param {*} parentType element's parent's type.
- */
-function validatePropertyKey(name, element, parentType) {
-  if (!NUMERIC_PROPERTY_REGEX.test(name)) {
-    return;
-  }
-  var addenda = getAddendaForKeyUse('numericKeys', element, parentType);
-  if (addenda === null) {
-    // we already showed the warning
-    return;
-  }
-  process.env.NODE_ENV !== 'production' ? warning(false, 'Child objects should have non-numeric keys so ordering is preserved.' + '%s%s%s', addenda.parentOrOwner || '', addenda.childOwner || '', addenda.url || '') : undefined;
-}
-
-/**
  * Shared warning and monitoring code for the key warnings.
  *
  * @internal
@@ -9179,18 +9486,22 @@ function validatePropertyKey(name, element, parentType) {
  * if the warning has already been shown before (and shouldn't be shown again).
  */
 function getAddendaForKeyUse(messageType, element, parentType) {
-  var ownerName = getCurrentOwnerDisplayName();
-  var parentName = typeof parentType === 'string' ? parentType : parentType.displayName || parentType.name;
+  var addendum = getDeclarationErrorAddendum();
+  if (!addendum) {
+    var parentName = typeof parentType === 'string' ? parentType : parentType.displayName || parentType.name;
+    if (parentName) {
+      addendum = ' Check the top-level render call using <' + parentName + '>.';
+    }
+  }
 
-  var useName = ownerName || parentName;
   var memoizer = ownerHasKeyUseWarning[messageType] || (ownerHasKeyUseWarning[messageType] = {});
-  if (memoizer[useName]) {
+  if (memoizer[addendum]) {
     return null;
   }
-  memoizer[useName] = true;
+  memoizer[addendum] = true;
 
   var addenda = {
-    parentOrOwner: ownerName ? ' Check the render method of ' + ownerName + '.' : parentName ? ' Check the React.render call using <' + parentName + '>.' : null,
+    parentOrOwner: addendum,
     url: ' See https://fb.me/react-warning-keys for more information.',
     childOwner: null
   };
@@ -9200,7 +9511,7 @@ function getAddendaForKeyUse(messageType, element, parentType) {
   // assigning it a key.
   if (element && element._owner && element._owner !== ReactCurrentOwner.current) {
     // Give the component that originally created this child.
-    addenda.childOwner = ' It was passed a child from ' + getName(element._owner) + '.';
+    addenda.childOwner = ' It was passed a child from ' + element._owner.getName() + '.';
   }
 
   return addenda;
@@ -9216,6 +9527,9 @@ function getAddendaForKeyUse(messageType, element, parentType) {
  * @param {*} parentType node's parent's type.
  */
 function validateChildKeys(node, parentType) {
+  if (typeof node !== 'object') {
+    return;
+  }
   if (Array.isArray(node)) {
     for (var i = 0; i < node.length; i++) {
       var child = node[i];
@@ -9225,7 +9539,9 @@ function validateChildKeys(node, parentType) {
     }
   } else if (ReactElement.isValidElement(node)) {
     // This element was passed in a valid location.
-    node._store.validated = true;
+    if (node._store) {
+      node._store.validated = true;
+    }
   } else if (node) {
     var iteratorFn = getIteratorFn(node);
     // Entry iterators provide implicit keys.
@@ -9237,13 +9553,6 @@ function validateChildKeys(node, parentType) {
           if (ReactElement.isValidElement(step.value)) {
             validateExplicitKey(step.value, parentType);
           }
-        }
-      }
-    } else if (typeof node === 'object') {
-      var fragment = ReactFragment.extractIfFragment(node);
-      for (var key in fragment) {
-        if (fragment.hasOwnProperty(key)) {
-          validatePropertyKey(key, fragment[key], parentType);
         }
       }
     }
@@ -9310,9 +9619,10 @@ function validatePropTypes(element) {
 var ReactElementValidator = {
 
   createElement: function (type, props, children) {
+    var validType = typeof type === 'string' || typeof type === 'function';
     // We warn in this case but don't throw. We expect the element creation to
     // succeed and there will likely be errors in render.
-    process.env.NODE_ENV !== 'production' ? warning(typeof type === 'string' || typeof type === 'function', 'React.createElement: type should not be null, undefined, boolean, or ' + 'number. It should be a string (for DOM elements) or a ReactClass ' + '(for composite components).%s', getDeclarationErrorAddendum()) : undefined;
+    process.env.NODE_ENV !== 'production' ? warning(validType, 'React.createElement: type should not be null, undefined, boolean, or ' + 'number. It should be a string (for DOM elements) or a ReactClass ' + '(for composite components).%s', getDeclarationErrorAddendum()) : undefined;
 
     var element = ReactElement.createElement.apply(this, arguments);
 
@@ -9322,8 +9632,15 @@ var ReactElementValidator = {
       return element;
     }
 
-    for (var i = 2; i < arguments.length; i++) {
-      validateChildKeys(arguments[i], type);
+    // Skip key warning if the type isn't valid since our key validation logic
+    // doesn't expect a non-string/function type and can throw confusing errors.
+    // We don't want exception behavior to differ between dev and prod.
+    // (Rendering will throw with a helpful message and as soon as the type is
+    // fixed, the key warnings will appear.)
+    if (validType) {
+      for (var i = 2; i < arguments.length; i++) {
+        validateChildKeys(arguments[i], type);
+      }
     }
 
     validatePropTypes(element);
@@ -9337,7 +9654,7 @@ var ReactElementValidator = {
     validatedFactory.type = type;
 
     if (process.env.NODE_ENV !== 'production') {
-      try {
+      if (canDefineProperty) {
         Object.defineProperty(validatedFactory, 'type', {
           enumerable: false,
           get: function () {
@@ -9348,8 +9665,6 @@ var ReactElementValidator = {
             return type;
           }
         });
-      } catch (x) {
-        // IE will fail on defineProperty (es5-shim/sham too)
       }
     }
 
@@ -9369,8 +9684,7 @@ var ReactElementValidator = {
 
 module.exports = ReactElementValidator;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":37,"./ReactElement":54,"./ReactFragment":60,"./ReactPropTypeLocationNames":74,"./ReactPropTypeLocations":75,"./getIteratorFn":115,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],56:[function(require,module,exports){
-(function (process){
+},{"./ReactCurrentOwner":37,"./ReactElement":55,"./ReactPropTypeLocationNames":75,"./ReactPropTypeLocations":76,"./canDefineProperty":107,"./getIteratorFn":118,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],57:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -9385,47 +9699,68 @@ module.exports = ReactElementValidator;
 'use strict';
 
 var ReactElement = require('./ReactElement');
-var ReactInstanceMap = require('./ReactInstanceMap');
+var ReactEmptyComponentRegistry = require('./ReactEmptyComponentRegistry');
+var ReactReconciler = require('./ReactReconciler');
 
-var invariant = require('fbjs/lib/invariant');
+var assign = require('./Object.assign');
 
-var component;
+var placeholderElement;
+
+var ReactEmptyComponentInjection = {
+  injectEmptyComponent: function (component) {
+    placeholderElement = ReactElement.createElement(component);
+  }
+};
+
+var ReactEmptyComponent = function (instantiate) {
+  this._currentElement = null;
+  this._rootNodeID = null;
+  this._renderedComponent = instantiate(placeholderElement);
+};
+assign(ReactEmptyComponent.prototype, {
+  construct: function (element) {},
+  mountComponent: function (rootID, transaction, context) {
+    ReactEmptyComponentRegistry.registerNullComponentID(rootID);
+    this._rootNodeID = rootID;
+    return ReactReconciler.mountComponent(this._renderedComponent, rootID, transaction, context);
+  },
+  receiveComponent: function () {},
+  unmountComponent: function (rootID, transaction, context) {
+    ReactReconciler.unmountComponent(this._renderedComponent);
+    ReactEmptyComponentRegistry.deregisterNullComponentID(this._rootNodeID);
+    this._rootNodeID = null;
+    this._renderedComponent = null;
+  }
+});
+
+ReactEmptyComponent.injection = ReactEmptyComponentInjection;
+
+module.exports = ReactEmptyComponent;
+},{"./Object.assign":25,"./ReactElement":55,"./ReactEmptyComponentRegistry":58,"./ReactReconciler":79}],58:[function(require,module,exports){
+/**
+ * Copyright 2014-2015, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule ReactEmptyComponentRegistry
+ */
+
+'use strict';
+
 // This registry keeps track of the React IDs of the components that rendered to
 // `null` (in reality a placeholder such as `noscript`)
 var nullComponentIDsRegistry = {};
 
-var ReactEmptyComponentInjection = {
-  injectEmptyComponent: function (emptyComponent) {
-    component = ReactElement.createFactory(emptyComponent);
-  }
-};
-
-var ReactEmptyComponentType = function () {};
-ReactEmptyComponentType.prototype.componentDidMount = function () {
-  var internalInstance = ReactInstanceMap.get(this);
-  // TODO: Make sure we run these methods in the correct order, we shouldn't
-  // need this check. We're going to assume if we're here it means we ran
-  // componentWillUnmount already so there is no internal instance (it gets
-  // removed as part of the unmounting process).
-  if (!internalInstance) {
-    return;
-  }
-  registerNullComponentID(internalInstance._rootNodeID);
-};
-ReactEmptyComponentType.prototype.componentWillUnmount = function () {
-  var internalInstance = ReactInstanceMap.get(this);
-  // TODO: Get rid of this check. See TODO in componentDidMount.
-  if (!internalInstance) {
-    return;
-  }
-  deregisterNullComponentID(internalInstance._rootNodeID);
-};
-ReactEmptyComponentType.prototype.render = function () {
-  !component ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Trying to return null from a render, but no null placeholder component ' + 'was injected.') : invariant(false) : undefined;
-  return component();
-};
-
-var emptyElement = ReactElement.createElement(ReactEmptyComponentType);
+/**
+ * @param {string} id Component's `_rootNodeID`.
+ * @return {boolean} True if the component is rendered to null.
+ */
+function isNullComponentID(id) {
+  return !!nullComponentIDsRegistry[id];
+}
 
 /**
  * Mark the component as having rendered to null.
@@ -9443,23 +9778,15 @@ function deregisterNullComponentID(id) {
   delete nullComponentIDsRegistry[id];
 }
 
-/**
- * @param {string} id Component's `_rootNodeID`.
- * @return {boolean} True if the component is rendered to null.
- */
-function isNullComponentID(id) {
-  return !!nullComponentIDsRegistry[id];
-}
-
-var ReactEmptyComponent = {
-  emptyElement: emptyElement,
-  injection: ReactEmptyComponentInjection,
-  isNullComponentID: isNullComponentID
+var ReactEmptyComponentRegistry = {
+  isNullComponentID: isNullComponentID,
+  registerNullComponentID: registerNullComponentID,
+  deregisterNullComponentID: deregisterNullComponentID
 };
 
-module.exports = ReactEmptyComponent;
-}).call(this,require('_process'))
-},{"./ReactElement":54,"./ReactInstanceMap":64,"_process":1,"fbjs/lib/invariant":145}],57:[function(require,module,exports){
+module.exports = ReactEmptyComponentRegistry;
+},{}],59:[function(require,module,exports){
+(function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -9474,23 +9801,71 @@ module.exports = ReactEmptyComponent;
 
 'use strict';
 
+var caughtError = null;
+
+/**
+ * Call a function while guarding against errors that happens within it.
+ *
+ * @param {?String} name of the guard to use for logging or debugging
+ * @param {Function} func The function to invoke
+ * @param {*} a First argument
+ * @param {*} b Second argument
+ */
+function invokeGuardedCallback(name, func, a, b) {
+  try {
+    return func(a, b);
+  } catch (x) {
+    if (caughtError === null) {
+      caughtError = x;
+    }
+    return undefined;
+  }
+}
+
 var ReactErrorUtils = {
+  invokeGuardedCallback: invokeGuardedCallback,
+
   /**
-   * Creates a guarded version of a function. This is supposed to make debugging
-   * of event handlers easier. To aid debugging with the browser's debugger,
-   * this currently simply returns the original function.
-   *
-   * @param {function} func Function to be executed
-   * @param {string} name The name of the guard
-   * @return {function}
+   * Invoked by ReactTestUtils.Simulate so that any errors thrown by the event
+   * handler are sure to be rethrown by rethrowCaughtError.
    */
-  guard: function (func, name) {
-    return func;
+  invokeGuardedCallbackWithCatch: invokeGuardedCallback,
+
+  /**
+   * During execution of guarded functions we will capture the first error which
+   * we will rethrow to be handled by the top level error handler.
+   */
+  rethrowCaughtError: function () {
+    if (caughtError) {
+      var error = caughtError;
+      caughtError = null;
+      throw error;
+    }
   }
 };
 
+if (process.env.NODE_ENV !== 'production') {
+  /**
+   * To help development we can get better devtools integration by simulating a
+   * real browser event.
+   */
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof document !== 'undefined' && typeof document.createEvent === 'function') {
+    var fakeNode = document.createElement('react');
+    ReactErrorUtils.invokeGuardedCallback = function (name, func, a, b) {
+      var boundFunc = func.bind(null, a, b);
+      var evtType = 'react-' + name;
+      fakeNode.addEventListener(evtType, boundFunc, false);
+      var evt = document.createEvent('Event');
+      evt.initEvent(evtType, false, false);
+      fakeNode.dispatchEvent(evt);
+      fakeNode.removeEventListener(evtType, boundFunc, false);
+    };
+  }
+}
+
 module.exports = ReactErrorUtils;
-},{}],58:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"_process":1}],60:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -9508,7 +9883,7 @@ var EventPluginHub = require('./EventPluginHub');
 
 function runEventQueueInBatch(events) {
   EventPluginHub.enqueueEvents(events);
-  EventPluginHub.processEventQueue();
+  EventPluginHub.processEventQueue(false);
 }
 
 var ReactEventEmitterMixin = {
@@ -9529,7 +9904,7 @@ var ReactEventEmitterMixin = {
 };
 
 module.exports = ReactEventEmitterMixin;
-},{"./EventPluginHub":18}],59:[function(require,module,exports){
+},{"./EventPluginHub":18}],61:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -9591,13 +9966,18 @@ assign(TopLevelCallbackBookKeeping.prototype, {
 PooledClass.addPoolingTo(TopLevelCallbackBookKeeping, PooledClass.twoArgumentPooler);
 
 function handleTopLevelImpl(bookKeeping) {
-  if (bookKeeping.nativeEvent.path && bookKeeping.nativeEvent.path.length > 1) {
-    // New browsers have a path attribute on native events
-    handleTopLevelWithPath(bookKeeping);
-  } else {
-    // Legacy browsers don't have a path attribute on native events
-    handleTopLevelWithoutPath(bookKeeping);
-  }
+  // TODO: Re-enable event.path handling
+  //
+  // if (bookKeeping.nativeEvent.path && bookKeeping.nativeEvent.path.length > 1) {
+  //   // New browsers have a path attribute on native events
+  //   handleTopLevelWithPath(bookKeeping);
+  // } else {
+  //   // Legacy browsers don't have a path attribute on native events
+  //   handleTopLevelWithoutPath(bookKeeping);
+  // }
+
+  void handleTopLevelWithPath; // temporarily unused
+  handleTopLevelWithoutPath(bookKeeping);
 }
 
 // Legacy browsers don't have a path attribute on native events
@@ -9628,11 +10008,13 @@ function handleTopLevelWithPath(bookKeeping) {
   var eventsFired = 0;
   for (var i = 0; i < path.length; i++) {
     var currentPathElement = path[i];
-    var currentPathElementID = ReactMount.getID(currentPathElement);
     if (currentPathElement.nodeType === DOCUMENT_FRAGMENT_NODE_TYPE) {
       currentNativeTarget = path[i + 1];
     }
-    if (ReactMount.isRenderedByReact(currentPathElement)) {
+    // TODO: slow
+    var reactParent = ReactMount.getFirstReactDOM(currentPathElement);
+    if (reactParent === currentPathElement) {
+      var currentPathElementID = ReactMount.getID(currentPathElement);
       var newRootID = ReactInstanceHandles.getReactRootIDFromNodeID(currentPathElementID);
       bookKeeping.ancestors.push(currentPathElement);
 
@@ -9734,165 +10116,7 @@ var ReactEventListener = {
 };
 
 module.exports = ReactEventListener;
-},{"./Object.assign":25,"./PooledClass":26,"./ReactInstanceHandles":63,"./ReactMount":67,"./ReactUpdates":85,"./getEventTarget":114,"fbjs/lib/EventListener":130,"fbjs/lib/ExecutionEnvironment":131,"fbjs/lib/getUnboundedScrollPosition":142}],60:[function(require,module,exports){
-(function (process){
-/**
- * Copyright 2015, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- *
- * @providesModule ReactFragment
- */
-
-'use strict';
-
-var ReactElement = require('./ReactElement');
-
-var warning = require('fbjs/lib/warning');
-
-/**
- * We used to allow keyed objects to serve as a collection of ReactElements,
- * or nested sets. This allowed us a way to explicitly key a set a fragment of
- * components. This is now being replaced with an opaque data structure.
- * The upgrade path is to call React.addons.createFragment({ key: value }) to
- * create a keyed fragment. The resulting data structure is opaque, for now.
- */
-
-var fragmentKey;
-var didWarnKey;
-var canWarnForReactFragment;
-
-if (process.env.NODE_ENV !== 'production') {
-  fragmentKey = '_reactFragment';
-  didWarnKey = '_reactDidWarn';
-
-  try {
-    // Feature test. Don't even try to issue this warning if we can't use
-    // enumerable: false.
-
-    var dummy = function () {
-      return 1;
-    };
-
-    Object.defineProperty({}, fragmentKey, { enumerable: false, value: true });
-
-    Object.defineProperty({}, 'key', { enumerable: true, get: dummy });
-
-    canWarnForReactFragment = true;
-  } catch (x) {
-    canWarnForReactFragment = false;
-  }
-
-  var proxyPropertyAccessWithWarning = function (obj, key) {
-    Object.defineProperty(obj, key, {
-      enumerable: true,
-      get: function () {
-        process.env.NODE_ENV !== 'production' ? warning(this[didWarnKey], 'A ReactFragment is an opaque type. Accessing any of its ' + 'properties is deprecated. Pass it to one of the React.Children ' + 'helpers.') : undefined;
-        this[didWarnKey] = true;
-        return this[fragmentKey][key];
-      },
-      set: function (value) {
-        process.env.NODE_ENV !== 'production' ? warning(this[didWarnKey], 'A ReactFragment is an immutable opaque type. Mutating its ' + 'properties is deprecated.') : undefined;
-        this[didWarnKey] = true;
-        this[fragmentKey][key] = value;
-      }
-    });
-  };
-
-  var issuedWarnings = {};
-
-  var didWarnForFragment = function (fragment) {
-    // We use the keys and the type of the value as a heuristic to dedupe the
-    // warning to avoid spamming too much.
-    var fragmentCacheKey = '';
-    for (var key in fragment) {
-      fragmentCacheKey += key + ':' + typeof fragment[key] + ',';
-    }
-    var alreadyWarnedOnce = !!issuedWarnings[fragmentCacheKey];
-    issuedWarnings[fragmentCacheKey] = true;
-    return alreadyWarnedOnce;
-  };
-}
-
-var ReactFragment = {
-  // Wrap a keyed object in an opaque proxy that warns you if you access any
-  // of its properties.
-  create: function (object) {
-    if (process.env.NODE_ENV !== 'production') {
-      if (typeof object !== 'object' || !object || Array.isArray(object)) {
-        process.env.NODE_ENV !== 'production' ? warning(false, 'React.addons.createFragment only accepts a single object. Got: %s', object) : undefined;
-        return object;
-      }
-      if (ReactElement.isValidElement(object)) {
-        process.env.NODE_ENV !== 'production' ? warning(false, 'React.addons.createFragment does not accept a ReactElement ' + 'without a wrapper object.') : undefined;
-        return object;
-      }
-      if (canWarnForReactFragment) {
-        var proxy = {};
-        Object.defineProperty(proxy, fragmentKey, {
-          enumerable: false,
-          value: object
-        });
-        Object.defineProperty(proxy, didWarnKey, {
-          writable: true,
-          enumerable: false,
-          value: false
-        });
-        for (var key in object) {
-          proxyPropertyAccessWithWarning(proxy, key);
-        }
-        Object.preventExtensions(proxy);
-        return proxy;
-      }
-    }
-    return object;
-  },
-  // Extract the original keyed object from the fragment opaque type. Warn if
-  // a plain object is passed here.
-  extract: function (fragment) {
-    if (process.env.NODE_ENV !== 'production') {
-      if (canWarnForReactFragment) {
-        if (!fragment[fragmentKey]) {
-          process.env.NODE_ENV !== 'production' ? warning(didWarnForFragment(fragment), 'Any use of a keyed object should be wrapped in ' + 'React.addons.createFragment(object) before being passed as a ' + 'child.') : undefined;
-          return fragment;
-        }
-        return fragment[fragmentKey];
-      }
-    }
-    return fragment;
-  },
-  // Check if this is a fragment and if so, extract the keyed object. If it
-  // is a fragment-like object, warn that it should be wrapped. Ignore if we
-  // can't determine what kind of object this is.
-  extractIfFragment: function (fragment) {
-    if (process.env.NODE_ENV !== 'production') {
-      if (canWarnForReactFragment) {
-        // If it is the opaque type, return the keyed object.
-        if (fragment[fragmentKey]) {
-          return fragment[fragmentKey];
-        }
-        // Otherwise, check each property if it has an element, if it does
-        // it is probably meant as a fragment, so we can warn early. Defer,
-        // the warning to extract.
-        for (var key in fragment) {
-          if (fragment.hasOwnProperty(key) && ReactElement.isValidElement(fragment[key])) {
-            // This looks like a fragment object, we should provide an
-            // early warning.
-            return ReactFragment.extract(fragment);
-          }
-        }
-      }
-    }
-    return fragment;
-  }
-};
-
-module.exports = ReactFragment;
-}).call(this,require('_process'))
-},{"./ReactElement":54,"_process":1,"fbjs/lib/warning":155}],61:[function(require,module,exports){
+},{"./Object.assign":25,"./PooledClass":26,"./ReactInstanceHandles":64,"./ReactMount":68,"./ReactUpdates":86,"./getEventTarget":117,"fbjs/lib/EventListener":132,"fbjs/lib/ExecutionEnvironment":133,"fbjs/lib/getUnboundedScrollPosition":144}],62:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -9913,7 +10137,6 @@ var ReactClass = require('./ReactClass');
 var ReactEmptyComponent = require('./ReactEmptyComponent');
 var ReactBrowserEventEmitter = require('./ReactBrowserEventEmitter');
 var ReactNativeComponent = require('./ReactNativeComponent');
-var ReactDOMComponent = require('./ReactDOMComponent');
 var ReactPerf = require('./ReactPerf');
 var ReactRootIndex = require('./ReactRootIndex');
 var ReactUpdates = require('./ReactUpdates');
@@ -9921,7 +10144,6 @@ var ReactUpdates = require('./ReactUpdates');
 var ReactInjection = {
   Component: ReactComponentEnvironment.injection,
   Class: ReactClass.injection,
-  DOMComponent: ReactDOMComponent.injection,
   DOMProperty: DOMProperty.injection,
   EmptyComponent: ReactEmptyComponent.injection,
   EventPluginHub: EventPluginHub.injection,
@@ -9933,7 +10155,7 @@ var ReactInjection = {
 };
 
 module.exports = ReactInjection;
-},{"./DOMProperty":12,"./EventPluginHub":18,"./ReactBrowserEventEmitter":29,"./ReactClass":32,"./ReactComponentEnvironment":35,"./ReactDOMComponent":40,"./ReactEmptyComponent":56,"./ReactNativeComponent":70,"./ReactPerf":73,"./ReactRootIndex":80,"./ReactUpdates":85}],62:[function(require,module,exports){
+},{"./DOMProperty":12,"./EventPluginHub":18,"./ReactBrowserEventEmitter":29,"./ReactClass":32,"./ReactComponentEnvironment":35,"./ReactEmptyComponent":57,"./ReactNativeComponent":71,"./ReactPerf":74,"./ReactRootIndex":81,"./ReactUpdates":86}],63:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -10058,7 +10280,7 @@ var ReactInputSelection = {
 };
 
 module.exports = ReactInputSelection;
-},{"./ReactDOMSelection":46,"fbjs/lib/containsNode":134,"fbjs/lib/focusNode":139,"fbjs/lib/getActiveElement":140}],63:[function(require,module,exports){
+},{"./ReactDOMSelection":47,"fbjs/lib/containsNode":136,"fbjs/lib/focusNode":141,"fbjs/lib/getActiveElement":142}],64:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -10363,7 +10585,7 @@ var ReactInstanceHandles = {
 
 module.exports = ReactInstanceHandles;
 }).call(this,require('_process'))
-},{"./ReactRootIndex":80,"_process":1,"fbjs/lib/invariant":145}],64:[function(require,module,exports){
+},{"./ReactRootIndex":81,"_process":1,"fbjs/lib/invariant":147}],65:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -10411,7 +10633,7 @@ var ReactInstanceMap = {
 };
 
 module.exports = ReactInstanceMap;
-},{}],65:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -10433,6 +10655,7 @@ var ReactDOMFactories = require('./ReactDOMFactories');
 var ReactElement = require('./ReactElement');
 var ReactElementValidator = require('./ReactElementValidator');
 var ReactPropTypes = require('./ReactPropTypes');
+var ReactVersion = require('./ReactVersion');
 
 var assign = require('./Object.assign');
 var onlyChild = require('./onlyChild');
@@ -10455,6 +10678,7 @@ var React = {
     map: ReactChildren.map,
     forEach: ReactChildren.forEach,
     count: ReactChildren.count,
+    toArray: ReactChildren.toArray,
     only: onlyChild
   },
 
@@ -10478,13 +10702,15 @@ var React = {
   // since they are just generating DOM strings.
   DOM: ReactDOMFactories,
 
+  version: ReactVersion,
+
   // Hook for JSX spread, don't use this for anything else.
   __spread: assign
 };
 
 module.exports = React;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./ReactChildren":31,"./ReactClass":32,"./ReactComponent":33,"./ReactDOMFactories":41,"./ReactElement":54,"./ReactElementValidator":55,"./ReactPropTypes":76,"./onlyChild":122,"_process":1}],66:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactChildren":31,"./ReactClass":32,"./ReactComponent":33,"./ReactDOMFactories":41,"./ReactElement":55,"./ReactElementValidator":56,"./ReactPropTypes":77,"./ReactVersion":87,"./onlyChild":124,"_process":1}],67:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -10530,7 +10756,7 @@ var ReactMarkupChecksum = {
 };
 
 module.exports = ReactMarkupChecksum;
-},{"./adler32":104}],67:[function(require,module,exports){
+},{"./adler32":106}],68:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -10548,8 +10774,9 @@ module.exports = ReactMarkupChecksum;
 var DOMProperty = require('./DOMProperty');
 var ReactBrowserEventEmitter = require('./ReactBrowserEventEmitter');
 var ReactCurrentOwner = require('./ReactCurrentOwner');
+var ReactDOMFeatureFlags = require('./ReactDOMFeatureFlags');
 var ReactElement = require('./ReactElement');
-var ReactEmptyComponent = require('./ReactEmptyComponent');
+var ReactEmptyComponentRegistry = require('./ReactEmptyComponentRegistry');
 var ReactInstanceHandles = require('./ReactInstanceHandles');
 var ReactInstanceMap = require('./ReactInstanceMap');
 var ReactMarkupChecksum = require('./ReactMarkupChecksum');
@@ -10558,6 +10785,7 @@ var ReactReconciler = require('./ReactReconciler');
 var ReactUpdateQueue = require('./ReactUpdateQueue');
 var ReactUpdates = require('./ReactUpdates');
 
+var assign = require('./Object.assign');
 var emptyObject = require('fbjs/lib/emptyObject');
 var containsNode = require('fbjs/lib/containsNode');
 var instantiateReactComponent = require('./instantiateReactComponent');
@@ -10567,14 +10795,14 @@ var shouldUpdateReactComponent = require('./shouldUpdateReactComponent');
 var validateDOMNesting = require('./validateDOMNesting');
 var warning = require('fbjs/lib/warning');
 
-var SEPARATOR = ReactInstanceHandles.SEPARATOR;
-
 var ATTR_NAME = DOMProperty.ID_ATTRIBUTE_NAME;
 var nodeCache = {};
 
 var ELEMENT_NODE_TYPE = 1;
 var DOC_NODE_TYPE = 9;
 var DOCUMENT_FRAGMENT_NODE_TYPE = 11;
+
+var ownerDocumentContextKey = '__ReactMount_ownerDocument$' + Math.random().toString(36).slice(2);
 
 /** Mapping from reactRootID to React component instance. */
 var instancesByReactRootID = {};
@@ -10705,7 +10933,7 @@ function getNode(id) {
  */
 function getNodeFromInstance(instance) {
   var id = ReactInstanceMap.get(instance)._rootNodeID;
-  if (ReactEmptyComponent.isNullComponentID(id)) {
+  if (ReactEmptyComponentRegistry.isNullComponentID(id)) {
     return null;
   }
   if (!nodeCache.hasOwnProperty(id) || !isValid(nodeCache[id], id)) {
@@ -10780,6 +11008,14 @@ function findDeepestCachedAncestor(targetID) {
  * @param {boolean} shouldReuseMarkup If true, do not insert markup
  */
 function mountComponentIntoNode(componentInstance, rootID, container, transaction, shouldReuseMarkup, context) {
+  if (ReactDOMFeatureFlags.useCreateElement) {
+    context = assign({}, context);
+    if (container.nodeType === DOC_NODE_TYPE) {
+      context[ownerDocumentContextKey] = container;
+    } else {
+      context[ownerDocumentContextKey] = container.ownerDocument;
+    }
+  }
   if (process.env.NODE_ENV !== 'production') {
     if (context === emptyObject) {
       context = {};
@@ -10789,7 +11025,7 @@ function mountComponentIntoNode(componentInstance, rootID, container, transactio
   }
   var markup = ReactReconciler.mountComponent(componentInstance, rootID, transaction, context);
   componentInstance._renderedComponent._topLevelWrapper = componentInstance;
-  ReactMount._mountImageIntoNode(markup, container, shouldReuseMarkup);
+  ReactMount._mountImageIntoNode(markup, container, shouldReuseMarkup, transaction);
 }
 
 /**
@@ -10801,7 +11037,8 @@ function mountComponentIntoNode(componentInstance, rootID, container, transactio
  * @param {boolean} shouldReuseMarkup If true, do not insert markup
  */
 function batchedMountComponentIntoNode(componentInstance, rootID, container, shouldReuseMarkup, context) {
-  var transaction = ReactUpdates.ReactReconcileTransaction.getPooled();
+  var transaction = ReactUpdates.ReactReconcileTransaction.getPooled(
+  /* forceHTML */shouldReuseMarkup);
   transaction.perform(mountComponentIntoNode, null, componentInstance, rootID, container, transaction, shouldReuseMarkup, context);
   ReactUpdates.ReactReconcileTransaction.release(transaction);
 }
@@ -10829,11 +11066,71 @@ function unmountComponentFromNode(instance, container) {
 }
 
 /**
+ * True if the supplied DOM node has a direct React-rendered child that is
+ * not a React root element. Useful for warning in `render`,
+ * `unmountComponentAtNode`, etc.
+ *
+ * @param {?DOMElement} node The candidate DOM node.
+ * @return {boolean} True if the DOM element contains a direct child that was
+ * rendered by React but is not a root element.
+ * @internal
+ */
+function hasNonRootReactChild(node) {
+  var reactRootID = getReactRootID(node);
+  return reactRootID ? reactRootID !== ReactInstanceHandles.getReactRootIDFromNodeID(reactRootID) : false;
+}
+
+/**
+ * Returns the first (deepest) ancestor of a node which is rendered by this copy
+ * of React.
+ */
+function findFirstReactDOMImpl(node) {
+  // This node might be from another React instance, so we make sure not to
+  // examine the node cache here
+  for (; node && node.parentNode !== node; node = node.parentNode) {
+    if (node.nodeType !== 1) {
+      // Not a DOMElement, therefore not a React component
+      continue;
+    }
+    var nodeID = internalGetID(node);
+    if (!nodeID) {
+      continue;
+    }
+    var reactRootID = ReactInstanceHandles.getReactRootIDFromNodeID(nodeID);
+
+    // If containersByReactRootID contains the container we find by crawling up
+    // the tree, we know that this instance of React rendered the node.
+    // nb. isValid's strategy (with containsNode) does not work because render
+    // trees may be nested and we don't want a false positive in that case.
+    var current = node;
+    var lastID;
+    do {
+      lastID = internalGetID(current);
+      current = current.parentNode;
+      if (current == null) {
+        // The passed-in node has been detached from the container it was
+        // originally rendered into.
+        return null;
+      }
+    } while (lastID !== reactRootID);
+
+    if (current === containersByReactRootID[reactRootID]) {
+      return node;
+    }
+  }
+  return null;
+}
+
+/**
  * Temporary (?) hack so that we can store all top-level pending updates on
  * composites instead of having to worry about different types of components
  * here.
  */
 var TopLevelWrapper = function () {};
+TopLevelWrapper.prototype.isReactComponent = {};
+if (process.env.NODE_ENV !== 'production') {
+  TopLevelWrapper.displayName = 'TopLevelWrapper';
+}
 TopLevelWrapper.prototype.render = function () {
   // this.props is actually a ReactElement
   return this.props;
@@ -10858,6 +11155,9 @@ TopLevelWrapper.prototype.render = function () {
  * Inside of `container`, the first element rendered is the "reactRoot".
  */
 var ReactMount = {
+
+  TopLevelWrapper: TopLevelWrapper,
+
   /** Exposed for debugging purposes **/
   _instancesByReactRootID: instancesByReactRootID,
 
@@ -10962,13 +11262,13 @@ var ReactMount = {
   },
 
   _renderSubtreeIntoContainer: function (parentComponent, nextElement, container, callback) {
-    !ReactElement.isValidElement(nextElement) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'React.render(): Invalid component element.%s', typeof nextElement === 'string' ? ' Instead of passing an element string, make sure to instantiate ' + 'it by passing it to React.createElement.' : typeof nextElement === 'function' ? ' Instead of passing a component class, make sure to instantiate ' + 'it by passing it to React.createElement.' :
+    !ReactElement.isValidElement(nextElement) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'ReactDOM.render(): Invalid component element.%s', typeof nextElement === 'string' ? ' Instead of passing an element string, make sure to instantiate ' + 'it by passing it to React.createElement.' : typeof nextElement === 'function' ? ' Instead of passing a component class, make sure to instantiate ' + 'it by passing it to React.createElement.' :
     // Check if it quacks like an element
     nextElement != null && nextElement.props !== undefined ? ' This may be caused by unintentionally loading two independent ' + 'copies of React.' : '') : invariant(false) : undefined;
 
     process.env.NODE_ENV !== 'production' ? warning(!container || !container.tagName || container.tagName.toUpperCase() !== 'BODY', 'render(): Rendering components directly into document.body is ' + 'discouraged, since its children are often manipulated by third-party ' + 'scripts and browser extensions. This may lead to subtle ' + 'reconciliation issues. Try rendering into a container element created ' + 'for your app.') : undefined;
 
-    var nextWrappedElement = new ReactElement(TopLevelWrapper, null, null, null, nextElement);
+    var nextWrappedElement = new ReactElement(TopLevelWrapper, null, null, null, null, null, nextElement);
 
     var prevComponent = instancesByReactRootID[getReactRootID(container)];
 
@@ -10976,30 +11276,37 @@ var ReactMount = {
       var prevWrappedElement = prevComponent._currentElement;
       var prevElement = prevWrappedElement.props;
       if (shouldUpdateReactComponent(prevElement, nextElement)) {
-        return ReactMount._updateRootComponent(prevComponent, nextWrappedElement, container, callback)._renderedComponent.getPublicInstance();
+        var publicInst = prevComponent._renderedComponent.getPublicInstance();
+        var updatedCallback = callback && function () {
+          callback.call(publicInst);
+        };
+        ReactMount._updateRootComponent(prevComponent, nextWrappedElement, container, updatedCallback);
+        return publicInst;
       } else {
         ReactMount.unmountComponentAtNode(container);
       }
     }
 
     var reactRootElement = getReactRootElementInContainer(container);
-    var containerHasReactMarkup = reactRootElement && ReactMount.isRenderedByReact(reactRootElement);
+    var containerHasReactMarkup = reactRootElement && !!internalGetID(reactRootElement);
+    var containerHasNonRootReactChild = hasNonRootReactChild(container);
 
     if (process.env.NODE_ENV !== 'production') {
+      process.env.NODE_ENV !== 'production' ? warning(!containerHasNonRootReactChild, 'render(...): Replacing React-rendered children with a new root ' + 'component. If you intended to update the children of this node, ' + 'you should instead have the existing children update their state ' + 'and render the new components instead of calling ReactDOM.render.') : undefined;
+
       if (!containerHasReactMarkup || reactRootElement.nextSibling) {
         var rootElementSibling = reactRootElement;
         while (rootElementSibling) {
-          if (ReactMount.isRenderedByReact(rootElementSibling)) {
+          if (internalGetID(rootElementSibling)) {
             process.env.NODE_ENV !== 'production' ? warning(false, 'render(): Target node has markup rendered by React, but there ' + 'are unrelated nodes as well. This is most commonly caused by ' + 'white-space inserted around server-rendered markup.') : undefined;
             break;
           }
-
           rootElementSibling = rootElementSibling.nextSibling;
         }
       }
     }
 
-    var shouldReuseMarkup = containerHasReactMarkup && !prevComponent;
+    var shouldReuseMarkup = containerHasReactMarkup && !prevComponent && !containerHasNonRootReactChild;
     var component = ReactMount._renderNewRootComponent(nextWrappedElement, container, shouldReuseMarkup, parentComponent != null ? parentComponent._reactInternalInstance._processChildContext(parentComponent._reactInternalInstance._context) : emptyObject)._renderedComponent.getPublicInstance();
     if (callback) {
       callback.call(component);
@@ -11064,6 +11371,18 @@ var ReactMount = {
     var reactRootID = getReactRootID(container);
     var component = instancesByReactRootID[reactRootID];
     if (!component) {
+      // Check if the node being unmounted was rendered by React, but isn't a
+      // root node.
+      var containerHasNonRootReactChild = hasNonRootReactChild(container);
+
+      // Check if the container itself is a React root node.
+      var containerID = internalGetID(container);
+      var isContainerReactRoot = containerID && containerID === ReactInstanceHandles.getReactRootIDFromNodeID(containerID);
+
+      if (process.env.NODE_ENV !== 'production') {
+        process.env.NODE_ENV !== 'production' ? warning(!containerHasNonRootReactChild, 'unmountComponentAtNode(): The node you\'re attempting to unmount ' + 'was rendered by React and is not a top-level container. %s', isContainerReactRoot ? 'You may have accidentally passed in a React root node instead ' + 'of its container.' : 'Instead, have the parent component update its state and ' + 'rerender in order to remove this component.') : undefined;
+      }
+
       return false;
     }
     ReactUpdates.batchedUpdates(unmountComponentFromNode, component, container);
@@ -11121,38 +11440,15 @@ var ReactMount = {
   },
 
   /**
-   * True if the supplied `node` is rendered by React.
-   *
-   * @param {*} node DOM Element to check.
-   * @return {boolean} True if the DOM Element appears to be rendered by React.
-   * @internal
-   */
-  isRenderedByReact: function (node) {
-    if (node.nodeType !== 1) {
-      // Not a DOMElement, therefore not a React component
-      return false;
-    }
-    var id = ReactMount.getID(node);
-    return id ? id.charAt(0) === SEPARATOR : false;
-  },
-
-  /**
    * Traverses up the ancestors of the supplied node to find a node that is a
-   * DOM representation of a React component.
+   * DOM representation of a React component rendered by this copy of React.
    *
    * @param {*} node
    * @return {?DOMEventTarget}
    * @internal
    */
   getFirstReactDOM: function (node) {
-    var current = node;
-    while (current && current.parentNode !== current) {
-      if (ReactMount.isRenderedByReact(current)) {
-        return current;
-      }
-      current = current.parentNode;
-    }
-    return null;
+    return findFirstReactDOMImpl(node);
   },
 
   /**
@@ -11170,6 +11466,11 @@ var ReactMount = {
     var childIndex = 0;
 
     var deepestAncestor = findDeepestCachedAncestor(targetID) || ancestorNode;
+
+    if (process.env.NODE_ENV !== 'production') {
+      // This will throw on the next line; give an early warning
+      process.env.NODE_ENV !== 'production' ? warning(deepestAncestor != null, 'React can\'t find the root component node for data-reactid value ' + '`%s`. If you\'re seeing this message, it probably means that ' + 'you\'ve loaded two copies of React on the page. At this time, only ' + 'a single copy of React can be loaded at a time.', targetID) : undefined;
+    }
 
     firstChildren[0] = deepestAncestor.firstChild;
     firstChildren.length = 1;
@@ -11223,7 +11524,7 @@ var ReactMount = {
     !false ? process.env.NODE_ENV !== 'production' ? invariant(false, 'findComponentRoot(..., %s): Unable to find element. This probably ' + 'means the DOM was unexpectedly mutated (e.g., by the browser), ' + 'usually due to forgetting a <tbody> when using tables, nesting tags ' + 'like <form>, <p>, or <a>, or using non-SVG elements in an <svg> ' + 'parent. ' + 'Try inspecting the child nodes of the element with React ID `%s`.', targetID, ReactMount.getID(ancestorNode)) : invariant(false) : undefined;
   },
 
-  _mountImageIntoNode: function (markup, container, shouldReuseMarkup) {
+  _mountImageIntoNode: function (markup, container, shouldReuseMarkup, transaction) {
     !(container && (container.nodeType === ELEMENT_NODE_TYPE || container.nodeType === DOC_NODE_TYPE || container.nodeType === DOCUMENT_FRAGMENT_NODE_TYPE)) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'mountComponentIntoNode(...): Target container is not valid.') : invariant(false) : undefined;
 
     if (shouldReuseMarkup) {
@@ -11268,10 +11569,19 @@ var ReactMount = {
       }
     }
 
-    !(container.nodeType !== DOC_NODE_TYPE) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'You\'re trying to render a component to the document but ' + 'you didn\'t use server rendering. We can\'t do this ' + 'without using server rendering due to cross-browser quirks. ' + 'See React.renderToString() for server rendering.') : invariant(false) : undefined;
+    !(container.nodeType !== DOC_NODE_TYPE) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'You\'re trying to render a component to the document but ' + 'you didn\'t use server rendering. We can\'t do this ' + 'without using server rendering due to cross-browser quirks. ' + 'See ReactDOMServer.renderToString() for server rendering.') : invariant(false) : undefined;
 
-    setInnerHTML(container, markup);
+    if (transaction.useCreateElement) {
+      while (container.lastChild) {
+        container.removeChild(container.lastChild);
+      }
+      container.appendChild(markup);
+    } else {
+      setInnerHTML(container, markup);
+    }
   },
+
+  ownerDocumentContextKey: ownerDocumentContextKey,
 
   /**
    * React ID utilities.
@@ -11287,6 +11597,8 @@ var ReactMount = {
 
   getNodeFromInstance: getNodeFromInstance,
 
+  isValid: isValid,
+
   purgeID: purgeID
 };
 
@@ -11297,7 +11609,8 @@ ReactPerf.measureMethods(ReactMount, 'ReactMount', {
 
 module.exports = ReactMount;
 }).call(this,require('_process'))
-},{"./DOMProperty":12,"./ReactBrowserEventEmitter":29,"./ReactCurrentOwner":37,"./ReactElement":54,"./ReactEmptyComponent":56,"./ReactInstanceHandles":63,"./ReactInstanceMap":64,"./ReactMarkupChecksum":66,"./ReactPerf":73,"./ReactReconciler":78,"./ReactUpdateQueue":84,"./ReactUpdates":85,"./instantiateReactComponent":118,"./setInnerHTML":125,"./shouldUpdateReactComponent":127,"./validateDOMNesting":129,"_process":1,"fbjs/lib/containsNode":134,"fbjs/lib/emptyObject":138,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],68:[function(require,module,exports){
+},{"./DOMProperty":12,"./Object.assign":25,"./ReactBrowserEventEmitter":29,"./ReactCurrentOwner":37,"./ReactDOMFeatureFlags":42,"./ReactElement":55,"./ReactEmptyComponentRegistry":58,"./ReactInstanceHandles":64,"./ReactInstanceMap":65,"./ReactMarkupChecksum":67,"./ReactPerf":74,"./ReactReconciler":79,"./ReactUpdateQueue":85,"./ReactUpdates":86,"./instantiateReactComponent":121,"./setInnerHTML":127,"./shouldUpdateReactComponent":129,"./validateDOMNesting":131,"_process":1,"fbjs/lib/containsNode":136,"fbjs/lib/emptyObject":140,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],69:[function(require,module,exports){
+(function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -11315,8 +11628,11 @@ module.exports = ReactMount;
 var ReactComponentEnvironment = require('./ReactComponentEnvironment');
 var ReactMultiChildUpdateTypes = require('./ReactMultiChildUpdateTypes');
 
+var ReactCurrentOwner = require('./ReactCurrentOwner');
 var ReactReconciler = require('./ReactReconciler');
 var ReactChildReconciler = require('./ReactChildReconciler');
+
+var flattenChildren = require('./flattenChildren');
 
 /**
  * Updating children of a component may trigger recursive updates. The depth is
@@ -11486,6 +11802,37 @@ var ReactMultiChild = {
    */
   Mixin: {
 
+    _reconcilerInstantiateChildren: function (nestedChildren, transaction, context) {
+      if (process.env.NODE_ENV !== 'production') {
+        if (this._currentElement) {
+          try {
+            ReactCurrentOwner.current = this._currentElement._owner;
+            return ReactChildReconciler.instantiateChildren(nestedChildren, transaction, context);
+          } finally {
+            ReactCurrentOwner.current = null;
+          }
+        }
+      }
+      return ReactChildReconciler.instantiateChildren(nestedChildren, transaction, context);
+    },
+
+    _reconcilerUpdateChildren: function (prevChildren, nextNestedChildrenElements, transaction, context) {
+      var nextChildren;
+      if (process.env.NODE_ENV !== 'production') {
+        if (this._currentElement) {
+          try {
+            ReactCurrentOwner.current = this._currentElement._owner;
+            nextChildren = flattenChildren(nextNestedChildrenElements);
+          } finally {
+            ReactCurrentOwner.current = null;
+          }
+          return ReactChildReconciler.updateChildren(prevChildren, nextChildren, transaction, context);
+        }
+      }
+      nextChildren = flattenChildren(nextNestedChildrenElements);
+      return ReactChildReconciler.updateChildren(prevChildren, nextChildren, transaction, context);
+    },
+
     /**
      * Generates a "mount image" for each of the supplied children. In the case
      * of `ReactDOMComponent`, a mount image is a string of markup.
@@ -11495,7 +11842,7 @@ var ReactMultiChild = {
      * @internal
      */
     mountChildren: function (nestedChildren, transaction, context) {
-      var children = ReactChildReconciler.instantiateChildren(nestedChildren, transaction, context);
+      var children = this._reconcilerInstantiateChildren(nestedChildren, transaction, context);
       this._renderedChildren = children;
       var mountImages = [];
       var index = 0;
@@ -11505,9 +11852,8 @@ var ReactMultiChild = {
           // Inlined for performance, see `ReactInstanceHandles.createReactID`.
           var rootID = this._rootNodeID + name;
           var mountImage = ReactReconciler.mountComponent(child, rootID, transaction, context);
-          child._mountIndex = index;
+          child._mountIndex = index++;
           mountImages.push(mountImage);
-          index++;
         }
       }
       return mountImages;
@@ -11615,7 +11961,7 @@ var ReactMultiChild = {
      */
     _updateChildren: function (nextNestedChildrenElements, transaction, context) {
       var prevChildren = this._renderedChildren;
-      var nextChildren = ReactChildReconciler.updateChildren(prevChildren, nextNestedChildrenElements, transaction, context);
+      var nextChildren = this._reconcilerUpdateChildren(prevChildren, nextNestedChildrenElements, transaction, context);
       this._renderedChildren = nextChildren;
       if (!nextChildren && !prevChildren) {
         return;
@@ -11761,7 +12107,8 @@ var ReactMultiChild = {
 };
 
 module.exports = ReactMultiChild;
-},{"./ReactChildReconciler":30,"./ReactComponentEnvironment":35,"./ReactMultiChildUpdateTypes":69,"./ReactReconciler":78}],69:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./ReactChildReconciler":30,"./ReactComponentEnvironment":35,"./ReactCurrentOwner":37,"./ReactMultiChildUpdateTypes":70,"./ReactReconciler":79,"./flattenChildren":112,"_process":1}],70:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -11794,7 +12141,7 @@ var ReactMultiChildUpdateTypes = keyMirror({
 });
 
 module.exports = ReactMultiChildUpdateTypes;
-},{"fbjs/lib/keyMirror":148}],70:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":150}],71:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -11891,7 +12238,7 @@ var ReactNativeComponent = {
 
 module.exports = ReactNativeComponent;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"_process":1,"fbjs/lib/invariant":145}],71:[function(require,module,exports){
+},{"./Object.assign":25,"_process":1,"fbjs/lib/invariant":147}],72:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015, Facebook, Inc.
@@ -12012,7 +12359,7 @@ var ReactNoopUpdateQueue = {
 
 module.exports = ReactNoopUpdateQueue;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/warning":155}],72:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/warning":158}],73:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -12080,7 +12427,7 @@ var ReactOwner = {
    * @internal
    */
   addComponentAsRefTo: function (component, ref, owner) {
-    !ReactOwner.isValidOwner(owner) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'addComponentAsRefTo(...): Only a ReactOwner can have refs. This ' + 'usually means that you\'re trying to add a ref to a component that ' + 'doesn\'t have an owner (that is, was not created inside of another ' + 'component\'s `render` method). Try rendering this component inside of ' + 'a new top-level component which will hold the ref.') : invariant(false) : undefined;
+    !ReactOwner.isValidOwner(owner) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'addComponentAsRefTo(...): Only a ReactOwner can have refs. You might ' + 'be adding a ref to a component that was not created inside a component\'s ' + '`render` method, or you have multiple copies of React loaded ' + '(details: https://fb.me/react-refs-must-have-owner).') : invariant(false) : undefined;
     owner.attachRef(ref, component);
   },
 
@@ -12094,7 +12441,7 @@ var ReactOwner = {
    * @internal
    */
   removeComponentAsRefFrom: function (component, ref, owner) {
-    !ReactOwner.isValidOwner(owner) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'removeComponentAsRefFrom(...): Only a ReactOwner can have refs. This ' + 'usually means that you\'re trying to remove a ref from a component that ' + 'doesn\'t have an owner (that is, was not created inside of another ' + 'component\'s `render` method). Try rendering this component inside of ' + 'a new top-level component which will hold the ref.') : invariant(false) : undefined;
+    !ReactOwner.isValidOwner(owner) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'removeComponentAsRefFrom(...): Only a ReactOwner can have refs. You might ' + 'be removing a ref to a component that was not created inside a component\'s ' + '`render` method, or you have multiple copies of React loaded ' + '(details: https://fb.me/react-refs-must-have-owner).') : invariant(false) : undefined;
     // Check that `component` is still the current ref because we do not want to
     // detach the ref if another component stole it.
     if (owner.getPublicInstance().refs[ref] === component.getPublicInstance()) {
@@ -12106,7 +12453,7 @@ var ReactOwner = {
 
 module.exports = ReactOwner;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/invariant":145}],73:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/invariant":147}],74:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -12205,7 +12552,7 @@ function _noMeasure(objName, fnName, func) {
 
 module.exports = ReactPerf;
 }).call(this,require('_process'))
-},{"_process":1}],74:[function(require,module,exports){
+},{"_process":1}],75:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -12232,7 +12579,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = ReactPropTypeLocationNames;
 }).call(this,require('_process'))
-},{"_process":1}],75:[function(require,module,exports){
+},{"_process":1}],76:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -12255,7 +12602,7 @@ var ReactPropTypeLocations = keyMirror({
 });
 
 module.exports = ReactPropTypeLocations;
-},{"fbjs/lib/keyMirror":148}],76:[function(require,module,exports){
+},{"fbjs/lib/keyMirror":150}],77:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -12270,7 +12617,6 @@ module.exports = ReactPropTypeLocations;
 'use strict';
 
 var ReactElement = require('./ReactElement');
-var ReactFragment = require('./ReactFragment');
 var ReactPropTypeLocationNames = require('./ReactPropTypeLocationNames');
 
 var emptyFunction = require('fbjs/lib/emptyFunction');
@@ -12422,7 +12768,8 @@ function createInstanceTypeChecker(expectedClass) {
     if (!(props[propName] instanceof expectedClass)) {
       var locationName = ReactPropTypeLocationNames[location];
       var expectedClassName = expectedClass.name || ANONYMOUS;
-      return new Error('Invalid ' + locationName + ' `' + propFullName + '` supplied to ' + ('`' + componentName + '`, expected instance of `' + expectedClassName + '`.'));
+      var actualClassName = getClassName(props[propName]);
+      return new Error('Invalid ' + locationName + ' `' + propFullName + '` of type ' + ('`' + actualClassName + '` supplied to `' + componentName + '`, expected ') + ('instance of `' + expectedClassName + '`.'));
     }
     return null;
   }
@@ -12565,12 +12912,7 @@ function isNode(propValue) {
           }
         }
       } else {
-        propValue = ReactFragment.extractIfFragment(propValue);
-        for (var k in propValue) {
-          if (!isNode(propValue[k])) {
-            return false;
-          }
-        }
+        return false;
       }
 
       return true;
@@ -12608,8 +12950,16 @@ function getPreciseType(propValue) {
   return propType;
 }
 
+// Returns class name of the object, if any.
+function getClassName(propValue) {
+  if (!propValue.constructor || !propValue.constructor.name) {
+    return '<<anonymous>>';
+  }
+  return propValue.constructor.name;
+}
+
 module.exports = ReactPropTypes;
-},{"./ReactElement":54,"./ReactFragment":60,"./ReactPropTypeLocationNames":74,"./getIteratorFn":115,"fbjs/lib/emptyFunction":137}],77:[function(require,module,exports){
+},{"./ReactElement":55,"./ReactPropTypeLocationNames":75,"./getIteratorFn":118,"fbjs/lib/emptyFunction":139}],78:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -12627,6 +12977,7 @@ module.exports = ReactPropTypes;
 var CallbackQueue = require('./CallbackQueue');
 var PooledClass = require('./PooledClass');
 var ReactBrowserEventEmitter = require('./ReactBrowserEventEmitter');
+var ReactDOMFeatureFlags = require('./ReactDOMFeatureFlags');
 var ReactInputSelection = require('./ReactInputSelection');
 var Transaction = require('./Transaction');
 
@@ -12665,7 +13016,7 @@ var EVENT_SUPPRESSION = {
 
   /**
    * @param {boolean} previouslyEnabled Enabled status of
-   *   `ReactBrowserEventEmitter` before the reconciliation occured. `close`
+   *   `ReactBrowserEventEmitter` before the reconciliation occurred. `close`
    *   restores the previous value.
    */
   close: function (previouslyEnabled) {
@@ -12714,7 +13065,7 @@ var TRANSACTION_WRAPPERS = [SELECTION_RESTORATION, EVENT_SUPPRESSION, ON_DOM_REA
  *
  * @class ReactReconcileTransaction
  */
-function ReactReconcileTransaction() {
+function ReactReconcileTransaction(forceHTML) {
   this.reinitializeTransaction();
   // Only server-side rendering really needs this option (see
   // `ReactServerRendering`), but server-side uses
@@ -12723,6 +13074,7 @@ function ReactReconcileTransaction() {
   // `ReactTextComponent` checks it in `mountComponent`.`
   this.renderToStaticMarkup = false;
   this.reactMountReady = CallbackQueue.getPooled(null);
+  this.useCreateElement = !forceHTML && ReactDOMFeatureFlags.useCreateElement;
 }
 
 var Mixin = {
@@ -12759,7 +13111,7 @@ assign(ReactReconcileTransaction.prototype, Transaction.Mixin, Mixin);
 PooledClass.addPoolingTo(ReactReconcileTransaction);
 
 module.exports = ReactReconcileTransaction;
-},{"./CallbackQueue":8,"./Object.assign":25,"./PooledClass":26,"./ReactBrowserEventEmitter":29,"./ReactInputSelection":62,"./Transaction":101}],78:[function(require,module,exports){
+},{"./CallbackQueue":8,"./Object.assign":25,"./PooledClass":26,"./ReactBrowserEventEmitter":29,"./ReactDOMFeatureFlags":42,"./ReactInputSelection":63,"./Transaction":103}],79:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -12797,7 +13149,7 @@ var ReactReconciler = {
    */
   mountComponent: function (internalInstance, rootID, transaction, context) {
     var markup = internalInstance.mountComponent(rootID, transaction, context);
-    if (internalInstance._currentElement.ref != null) {
+    if (internalInstance._currentElement && internalInstance._currentElement.ref != null) {
       transaction.getReactMountReady().enqueue(attachRefs, internalInstance);
     }
     return markup;
@@ -12825,21 +13177,20 @@ var ReactReconciler = {
    */
   receiveComponent: function (internalInstance, nextElement, transaction, context) {
     var prevElement = internalInstance._currentElement;
-    if (nextElement === prevElement && nextElement._owner != null
-    // TODO: Shouldn't we need to do this: `&& context === internalInstance._context`
-    ) {
-        // Since elements are immutable after the owner is rendered,
-        // we can do a cheap identity compare here to determine if this is a
-        // superfluous reconcile. It's possible for state to be mutable but such
-        // change should trigger an update of the owner which would recreate
-        // the element. We explicitly check for the existence of an owner since
-        // it's possible for an element created outside a composite to be
-        // deeply mutated and reused.
 
-        // TODO: Bailing out early is just a perf optimization right?
-        // TODO: Removing the return statement should affect correctness?
-        return;
-      }
+    if (nextElement === prevElement && context === internalInstance._context) {
+      // Since elements are immutable after the owner is rendered,
+      // we can do a cheap identity compare here to determine if this is a
+      // superfluous reconcile. It's possible for state to be mutable but such
+      // change should trigger an update of the owner which would recreate
+      // the element. We explicitly check for the existence of an owner since
+      // it's possible for an element created outside a composite to be
+      // deeply mutated and reused.
+
+      // TODO: Bailing out early is just a perf optimization right?
+      // TODO: Removing the return statement should affect correctness?
+      return;
+    }
 
     var refsChanged = ReactRef.shouldUpdateRefs(prevElement, nextElement);
 
@@ -12849,7 +13200,7 @@ var ReactReconciler = {
 
     internalInstance.receiveComponent(nextElement, transaction, context);
 
-    if (refsChanged) {
+    if (refsChanged && internalInstance._currentElement && internalInstance._currentElement.ref != null) {
       transaction.getReactMountReady().enqueue(attachRefs, internalInstance);
     }
   },
@@ -12868,7 +13219,7 @@ var ReactReconciler = {
 };
 
 module.exports = ReactReconciler;
-},{"./ReactRef":79}],79:[function(require,module,exports){
+},{"./ReactRef":80}],80:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -12905,6 +13256,9 @@ function detachRef(ref, component, owner) {
 }
 
 ReactRef.attachRefs = function (instance, element) {
+  if (element === null || element === false) {
+    return;
+  }
   var ref = element.ref;
   if (ref != null) {
     attachRef(ref, instance, element._owner);
@@ -12924,10 +13278,19 @@ ReactRef.shouldUpdateRefs = function (prevElement, nextElement) {
   // is made. It probably belongs where the key checking and
   // instantiateReactComponent is done.
 
-  return nextElement._owner !== prevElement._owner || nextElement.ref !== prevElement.ref;
+  var prevEmpty = prevElement === null || prevElement === false;
+  var nextEmpty = nextElement === null || nextElement === false;
+
+  return(
+    // This has a few false positives w/r/t empty components.
+    prevEmpty || nextEmpty || nextElement._owner !== prevElement._owner || nextElement.ref !== prevElement.ref
+  );
 };
 
 ReactRef.detachRefs = function (instance, element) {
+  if (element === null || element === false) {
+    return;
+  }
   var ref = element.ref;
   if (ref != null) {
     detachRef(ref, instance, element._owner);
@@ -12935,7 +13298,7 @@ ReactRef.detachRefs = function (instance, element) {
 };
 
 module.exports = ReactRef;
-},{"./ReactOwner":72}],80:[function(require,module,exports){
+},{"./ReactOwner":73}],81:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -12965,7 +13328,7 @@ var ReactRootIndex = {
 };
 
 module.exports = ReactRootIndex;
-},{}],81:[function(require,module,exports){
+},{}],82:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -12989,7 +13352,7 @@ var ReactServerBatchingStrategy = {
 };
 
 module.exports = ReactServerBatchingStrategy;
-},{}],82:[function(require,module,exports){
+},{}],83:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -13075,7 +13438,7 @@ module.exports = {
   renderToStaticMarkup: renderToStaticMarkup
 };
 }).call(this,require('_process'))
-},{"./ReactDefaultBatchingStrategy":50,"./ReactElement":54,"./ReactInstanceHandles":63,"./ReactMarkupChecksum":66,"./ReactServerBatchingStrategy":81,"./ReactServerRenderingTransaction":83,"./ReactUpdates":85,"./instantiateReactComponent":118,"_process":1,"fbjs/lib/emptyObject":138,"fbjs/lib/invariant":145}],83:[function(require,module,exports){
+},{"./ReactDefaultBatchingStrategy":51,"./ReactElement":55,"./ReactInstanceHandles":64,"./ReactMarkupChecksum":67,"./ReactServerBatchingStrategy":82,"./ReactServerRenderingTransaction":84,"./ReactUpdates":86,"./instantiateReactComponent":121,"_process":1,"fbjs/lib/emptyObject":140,"fbjs/lib/invariant":147}],84:[function(require,module,exports){
 /**
  * Copyright 2014-2015, Facebook, Inc.
  * All rights reserved.
@@ -13127,6 +13490,7 @@ function ReactServerRenderingTransaction(renderToStaticMarkup) {
   this.reinitializeTransaction();
   this.renderToStaticMarkup = renderToStaticMarkup;
   this.reactMountReady = CallbackQueue.getPooled(null);
+  this.useCreateElement = false;
 }
 
 var Mixin = {
@@ -13162,7 +13526,7 @@ assign(ReactServerRenderingTransaction.prototype, Transaction.Mixin, Mixin);
 PooledClass.addPoolingTo(ReactServerRenderingTransaction);
 
 module.exports = ReactServerRenderingTransaction;
-},{"./CallbackQueue":8,"./Object.assign":25,"./PooledClass":26,"./Transaction":101,"fbjs/lib/emptyFunction":137}],84:[function(require,module,exports){
+},{"./CallbackQueue":8,"./Object.assign":25,"./PooledClass":26,"./Transaction":103,"fbjs/lib/emptyFunction":139}],85:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015, Facebook, Inc.
@@ -13191,10 +13555,6 @@ function enqueueUpdate(internalInstance) {
 }
 
 function getInternalInstanceReadyForUpdate(publicInstance, callerName) {
-  if (process.env.NODE_ENV !== 'production') {
-    process.env.NODE_ENV !== 'production' ? warning(ReactCurrentOwner.current == null, '%s(...): Cannot update during an existing state transition ' + '(such as within `render`). Render methods should be a pure function ' + 'of props and state.', callerName) : undefined;
-  }
-
   var internalInstance = ReactInstanceMap.get(publicInstance);
   if (!internalInstance) {
     if (process.env.NODE_ENV !== 'production') {
@@ -13204,6 +13564,10 @@ function getInternalInstanceReadyForUpdate(publicInstance, callerName) {
       process.env.NODE_ENV !== 'production' ? warning(!callerName, '%s(...): Can only update a mounted or mounting component. ' + 'This usually means you called %s() on an unmounted component. ' + 'This is a no-op. Please check the code for the %s component.', callerName, callerName, publicInstance.constructor.displayName) : undefined;
     }
     return null;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    process.env.NODE_ENV !== 'production' ? warning(ReactCurrentOwner.current == null, '%s(...): Cannot update during an existing state transition ' + '(such as within `render`). Render methods should be a pure function ' + 'of props and state.', callerName) : undefined;
   }
 
   return internalInstance;
@@ -13422,7 +13786,7 @@ var ReactUpdateQueue = {
 
 module.exports = ReactUpdateQueue;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./ReactCurrentOwner":37,"./ReactElement":54,"./ReactInstanceMap":64,"./ReactUpdates":85,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],85:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactCurrentOwner":37,"./ReactElement":55,"./ReactInstanceMap":65,"./ReactUpdates":86,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],86:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -13490,7 +13854,7 @@ function ReactUpdatesFlushTransaction() {
   this.reinitializeTransaction();
   this.dirtyComponentsLength = null;
   this.callbackQueue = CallbackQueue.getPooled();
-  this.reconcileTransaction = ReactUpdates.ReactReconcileTransaction.getPooled();
+  this.reconcileTransaction = ReactUpdates.ReactReconcileTransaction.getPooled( /* forceHTML */false);
 }
 
 assign(ReactUpdatesFlushTransaction.prototype, Transaction.Mixin, {
@@ -13648,7 +14012,22 @@ var ReactUpdates = {
 
 module.exports = ReactUpdates;
 }).call(this,require('_process'))
-},{"./CallbackQueue":8,"./Object.assign":25,"./PooledClass":26,"./ReactPerf":73,"./ReactReconciler":78,"./Transaction":101,"_process":1,"fbjs/lib/invariant":145}],86:[function(require,module,exports){
+},{"./CallbackQueue":8,"./Object.assign":25,"./PooledClass":26,"./ReactPerf":74,"./ReactReconciler":79,"./Transaction":103,"_process":1,"fbjs/lib/invariant":147}],87:[function(require,module,exports){
+/**
+ * Copyright 2013-2015, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule ReactVersion
+ */
+
+'use strict';
+
+module.exports = '0.14.5';
+},{}],88:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -13776,7 +14155,7 @@ var SVGDOMPropertyConfig = {
 };
 
 module.exports = SVGDOMPropertyConfig;
-},{"./DOMProperty":12}],87:[function(require,module,exports){
+},{"./DOMProperty":12}],89:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -13792,6 +14171,7 @@ module.exports = SVGDOMPropertyConfig;
 
 var EventConstants = require('./EventConstants');
 var EventPropagators = require('./EventPropagators');
+var ExecutionEnvironment = require('fbjs/lib/ExecutionEnvironment');
 var ReactInputSelection = require('./ReactInputSelection');
 var SyntheticEvent = require('./SyntheticEvent');
 
@@ -13801,6 +14181,8 @@ var keyOf = require('fbjs/lib/keyOf');
 var shallowEqual = require('fbjs/lib/shallowEqual');
 
 var topLevelTypes = EventConstants.topLevelTypes;
+
+var skipSelectionChangeEvent = ExecutionEnvironment.canUseDOM && 'documentMode' in document && document.documentMode <= 11;
 
 var eventTypes = {
   select: {
@@ -13946,12 +14328,19 @@ var SelectEventPlugin = {
         return constructSelectEvent(nativeEvent, nativeEventTarget);
 
       // Chrome and IE fire non-standard event when selection is changed (and
-      // sometimes when it hasn't).
+      // sometimes when it hasn't). IE's event fires out of order with respect
+      // to key and input events on deletion, so we discard it.
+      //
       // Firefox doesn't support selectionchange, so check selection status
       // after each key entry. The selection changes after keydown and before
       // keyup, but we check on keydown as well in the case of holding down a
       // key, when multiple keydown events are fired but only one keyup is.
+      // This is also our approach for IE handling, for the reason above.
       case topLevelTypes.topSelectionChange:
+        if (skipSelectionChangeEvent) {
+          break;
+        }
+      // falls through
       case topLevelTypes.topKeyDown:
       case topLevelTypes.topKeyUp:
         return constructSelectEvent(nativeEvent, nativeEventTarget);
@@ -13968,7 +14357,7 @@ var SelectEventPlugin = {
 };
 
 module.exports = SelectEventPlugin;
-},{"./EventConstants":17,"./EventPropagators":21,"./ReactInputSelection":62,"./SyntheticEvent":93,"./isTextInputElement":120,"fbjs/lib/getActiveElement":140,"fbjs/lib/keyOf":149,"fbjs/lib/shallowEqual":153}],88:[function(require,module,exports){
+},{"./EventConstants":17,"./EventPropagators":21,"./ReactInputSelection":63,"./SyntheticEvent":95,"./isTextInputElement":123,"fbjs/lib/ExecutionEnvironment":133,"fbjs/lib/getActiveElement":142,"fbjs/lib/keyOf":151,"fbjs/lib/shallowEqual":156}],90:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -13998,7 +14387,7 @@ var ServerReactRootIndex = {
 };
 
 module.exports = ServerReactRootIndex;
-},{}],89:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -14015,7 +14404,6 @@ module.exports = ServerReactRootIndex;
 
 var EventConstants = require('./EventConstants');
 var EventListener = require('fbjs/lib/EventListener');
-var EventPluginUtils = require('./EventPluginUtils');
 var EventPropagators = require('./EventPropagators');
 var ReactMount = require('./ReactMount');
 var SyntheticClipboardEvent = require('./SyntheticClipboardEvent');
@@ -14032,7 +14420,6 @@ var emptyFunction = require('fbjs/lib/emptyFunction');
 var getEventCharCode = require('./getEventCharCode');
 var invariant = require('fbjs/lib/invariant');
 var keyOf = require('fbjs/lib/keyOf');
-var warning = require('fbjs/lib/warning');
 
 var topLevelTypes = EventConstants.topLevelTypes;
 
@@ -14420,16 +14807,16 @@ var topLevelEventsToDispatchConfig = {
   topMouseOut: eventTypes.mouseOut,
   topMouseOver: eventTypes.mouseOver,
   topMouseUp: eventTypes.mouseUp,
-  topPause: eventTypes.pause,
   topPaste: eventTypes.paste,
+  topPause: eventTypes.pause,
   topPlay: eventTypes.play,
   topPlaying: eventTypes.playing,
   topProgress: eventTypes.progress,
   topRateChange: eventTypes.rateChange,
   topReset: eventTypes.reset,
+  topScroll: eventTypes.scroll,
   topSeeked: eventTypes.seeked,
   topSeeking: eventTypes.seeking,
-  topScroll: eventTypes.scroll,
   topStalled: eventTypes.stalled,
   topSubmit: eventTypes.submit,
   topSuspend: eventTypes.suspend,
@@ -14453,25 +14840,6 @@ var onClickListeners = {};
 var SimpleEventPlugin = {
 
   eventTypes: eventTypes,
-
-  /**
-   * Same as the default implementation, except cancels the event when return
-   * value is false. This behavior will be disabled in a future release.
-   *
-   * @param {object} event Event to be dispatched.
-   * @param {function} listener Application-level callback.
-   * @param {string} domID DOM ID to pass to the callback.
-   */
-  executeDispatch: function (event, listener, domID) {
-    var returnValue = EventPluginUtils.executeDispatch(event, listener, domID);
-
-    process.env.NODE_ENV !== 'production' ? warning(typeof returnValue !== 'boolean', 'Returning `false` from an event handler is deprecated and will be ' + 'ignored in a future release. Instead, manually call ' + 'e.stopPropagation() or e.preventDefault(), as appropriate.') : undefined;
-
-    if (returnValue === false) {
-      event.stopPropagation();
-      event.preventDefault();
-    }
-  },
 
   /**
    * @param {string} topLevelType Record from `EventConstants`.
@@ -14609,7 +14977,7 @@ var SimpleEventPlugin = {
 
 module.exports = SimpleEventPlugin;
 }).call(this,require('_process'))
-},{"./EventConstants":17,"./EventPluginUtils":20,"./EventPropagators":21,"./ReactMount":67,"./SyntheticClipboardEvent":90,"./SyntheticDragEvent":92,"./SyntheticEvent":93,"./SyntheticFocusEvent":94,"./SyntheticKeyboardEvent":96,"./SyntheticMouseEvent":97,"./SyntheticTouchEvent":98,"./SyntheticUIEvent":99,"./SyntheticWheelEvent":100,"./getEventCharCode":111,"_process":1,"fbjs/lib/EventListener":130,"fbjs/lib/emptyFunction":137,"fbjs/lib/invariant":145,"fbjs/lib/keyOf":149,"fbjs/lib/warning":155}],90:[function(require,module,exports){
+},{"./EventConstants":17,"./EventPropagators":21,"./ReactMount":68,"./SyntheticClipboardEvent":92,"./SyntheticDragEvent":94,"./SyntheticEvent":95,"./SyntheticFocusEvent":96,"./SyntheticKeyboardEvent":98,"./SyntheticMouseEvent":99,"./SyntheticTouchEvent":100,"./SyntheticUIEvent":101,"./SyntheticWheelEvent":102,"./getEventCharCode":114,"_process":1,"fbjs/lib/EventListener":132,"fbjs/lib/emptyFunction":139,"fbjs/lib/invariant":147,"fbjs/lib/keyOf":151}],92:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -14649,7 +15017,7 @@ function SyntheticClipboardEvent(dispatchConfig, dispatchMarker, nativeEvent, na
 SyntheticEvent.augmentClass(SyntheticClipboardEvent, ClipboardEventInterface);
 
 module.exports = SyntheticClipboardEvent;
-},{"./SyntheticEvent":93}],91:[function(require,module,exports){
+},{"./SyntheticEvent":95}],93:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -14687,7 +15055,7 @@ function SyntheticCompositionEvent(dispatchConfig, dispatchMarker, nativeEvent, 
 SyntheticEvent.augmentClass(SyntheticCompositionEvent, CompositionEventInterface);
 
 module.exports = SyntheticCompositionEvent;
-},{"./SyntheticEvent":93}],92:[function(require,module,exports){
+},{"./SyntheticEvent":95}],94:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -14725,7 +15093,8 @@ function SyntheticDragEvent(dispatchConfig, dispatchMarker, nativeEvent, nativeE
 SyntheticMouseEvent.augmentClass(SyntheticDragEvent, DragEventInterface);
 
 module.exports = SyntheticDragEvent;
-},{"./SyntheticMouseEvent":97}],93:[function(require,module,exports){
+},{"./SyntheticMouseEvent":99}],95:[function(require,module,exports){
+(function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -14744,13 +15113,13 @@ var PooledClass = require('./PooledClass');
 
 var assign = require('./Object.assign');
 var emptyFunction = require('fbjs/lib/emptyFunction');
+var warning = require('fbjs/lib/warning');
 
 /**
  * @interface Event
  * @see http://www.w3.org/TR/DOM-Level-3-Events/
  */
 var EventInterface = {
-  path: null,
   type: null,
   // currentTarget is set when dispatching; no use in copying it here
   currentTarget: emptyFunction.thatReturnsNull,
@@ -14815,6 +15184,13 @@ assign(SyntheticEvent.prototype, {
   preventDefault: function () {
     this.defaultPrevented = true;
     var event = this.nativeEvent;
+    if (process.env.NODE_ENV !== 'production') {
+      process.env.NODE_ENV !== 'production' ? warning(event, 'This synthetic event is reused for performance reasons. If you\'re ' + 'seeing this, you\'re calling `preventDefault` on a ' + 'released/nullified synthetic event. This is a no-op. See ' + 'https://fb.me/react-event-pooling for more information.') : undefined;
+    }
+    if (!event) {
+      return;
+    }
+
     if (event.preventDefault) {
       event.preventDefault();
     } else {
@@ -14825,6 +15201,13 @@ assign(SyntheticEvent.prototype, {
 
   stopPropagation: function () {
     var event = this.nativeEvent;
+    if (process.env.NODE_ENV !== 'production') {
+      process.env.NODE_ENV !== 'production' ? warning(event, 'This synthetic event is reused for performance reasons. If you\'re ' + 'seeing this, you\'re calling `stopPropagation` on a ' + 'released/nullified synthetic event. This is a no-op. See ' + 'https://fb.me/react-event-pooling for more information.') : undefined;
+    }
+    if (!event) {
+      return;
+    }
+
     if (event.stopPropagation) {
       event.stopPropagation();
     } else {
@@ -14889,7 +15272,8 @@ SyntheticEvent.augmentClass = function (Class, Interface) {
 PooledClass.addPoolingTo(SyntheticEvent, PooledClass.fourArgumentPooler);
 
 module.exports = SyntheticEvent;
-},{"./Object.assign":25,"./PooledClass":26,"fbjs/lib/emptyFunction":137}],94:[function(require,module,exports){
+}).call(this,require('_process'))
+},{"./Object.assign":25,"./PooledClass":26,"_process":1,"fbjs/lib/emptyFunction":139,"fbjs/lib/warning":158}],96:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -14927,7 +15311,7 @@ function SyntheticFocusEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticFocusEvent, FocusEventInterface);
 
 module.exports = SyntheticFocusEvent;
-},{"./SyntheticUIEvent":99}],95:[function(require,module,exports){
+},{"./SyntheticUIEvent":101}],97:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -14966,7 +15350,7 @@ function SyntheticInputEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticEvent.augmentClass(SyntheticInputEvent, InputEventInterface);
 
 module.exports = SyntheticInputEvent;
-},{"./SyntheticEvent":93}],96:[function(require,module,exports){
+},{"./SyntheticEvent":95}],98:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15052,7 +15436,7 @@ function SyntheticKeyboardEvent(dispatchConfig, dispatchMarker, nativeEvent, nat
 SyntheticUIEvent.augmentClass(SyntheticKeyboardEvent, KeyboardEventInterface);
 
 module.exports = SyntheticKeyboardEvent;
-},{"./SyntheticUIEvent":99,"./getEventCharCode":111,"./getEventKey":112,"./getEventModifierState":113}],97:[function(require,module,exports){
+},{"./SyntheticUIEvent":101,"./getEventCharCode":114,"./getEventKey":115,"./getEventModifierState":116}],99:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15126,7 +15510,7 @@ function SyntheticMouseEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticMouseEvent, MouseEventInterface);
 
 module.exports = SyntheticMouseEvent;
-},{"./SyntheticUIEvent":99,"./ViewportMetrics":102,"./getEventModifierState":113}],98:[function(require,module,exports){
+},{"./SyntheticUIEvent":101,"./ViewportMetrics":104,"./getEventModifierState":116}],100:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15173,7 +15557,7 @@ function SyntheticTouchEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticUIEvent.augmentClass(SyntheticTouchEvent, TouchEventInterface);
 
 module.exports = SyntheticTouchEvent;
-},{"./SyntheticUIEvent":99,"./getEventModifierState":113}],99:[function(require,module,exports){
+},{"./SyntheticUIEvent":101,"./getEventModifierState":116}],101:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15234,7 +15618,7 @@ function SyntheticUIEvent(dispatchConfig, dispatchMarker, nativeEvent, nativeEve
 SyntheticEvent.augmentClass(SyntheticUIEvent, UIEventInterface);
 
 module.exports = SyntheticUIEvent;
-},{"./SyntheticEvent":93,"./getEventTarget":114}],100:[function(require,module,exports){
+},{"./SyntheticEvent":95,"./getEventTarget":117}],102:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15290,7 +15674,7 @@ function SyntheticWheelEvent(dispatchConfig, dispatchMarker, nativeEvent, native
 SyntheticMouseEvent.augmentClass(SyntheticWheelEvent, WheelEventInterface);
 
 module.exports = SyntheticWheelEvent;
-},{"./SyntheticMouseEvent":97}],101:[function(require,module,exports){
+},{"./SyntheticMouseEvent":99}],103:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -15516,7 +15900,7 @@ var Transaction = {
   Mixin: Mixin,
 
   /**
-   * Token to look for to determine if an error occured.
+   * Token to look for to determine if an error occurred.
    */
   OBSERVED_ERROR: {}
 
@@ -15524,7 +15908,7 @@ var Transaction = {
 
 module.exports = Transaction;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/invariant":145}],102:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/invariant":147}],104:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15552,7 +15936,7 @@ var ViewportMetrics = {
 };
 
 module.exports = ViewportMetrics;
-},{}],103:[function(require,module,exports){
+},{}],105:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -15614,7 +15998,7 @@ function accumulateInto(current, next) {
 
 module.exports = accumulateInto;
 }).call(this,require('_process'))
-},{"_process":1,"fbjs/lib/invariant":145}],104:[function(require,module,exports){
+},{"_process":1,"fbjs/lib/invariant":147}],106:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15657,7 +16041,34 @@ function adler32(data) {
 }
 
 module.exports = adler32;
-},{}],105:[function(require,module,exports){
+},{}],107:[function(require,module,exports){
+(function (process){
+/**
+ * Copyright 2013-2015, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule canDefineProperty
+ */
+
+'use strict';
+
+var canDefineProperty = false;
+if (process.env.NODE_ENV !== 'production') {
+  try {
+    Object.defineProperty({}, 'x', { get: function () {} });
+    canDefineProperty = true;
+  } catch (x) {
+    // IE will fail on defineProperty
+  }
+}
+
+module.exports = canDefineProperty;
+}).call(this,require('_process'))
+},{"_process":1}],108:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15713,7 +16124,7 @@ function dangerousStyleValue(name, value) {
 }
 
 module.exports = dangerousStyleValue;
-},{"./CSSProperty":6}],106:[function(require,module,exports){
+},{"./CSSProperty":6}],109:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -15737,11 +16148,12 @@ var warning = require('fbjs/lib/warning');
  *
  * @param {string} fnName The name of the function
  * @param {string} newModule The module that fn will exist in
+ * @param {string} newPackage The module that fn will exist in
  * @param {*} ctx The context this forwarded call should run in
  * @param {function} fn The function to forward on to
  * @return {function} The function that will warn once and then call fn
  */
-function deprecated(fnName, newModule, ctx, fn) {
+function deprecated(fnName, newModule, newPackage, ctx, fn) {
   var warned = false;
   if (process.env.NODE_ENV !== 'production') {
     var newFn = function () {
@@ -15749,7 +16161,7 @@ function deprecated(fnName, newModule, ctx, fn) {
       // Require examples in this string must be split to prevent React's
       // build tools from mistaking them for real requires.
       // Otherwise the build tools will attempt to build a '%s' module.
-      '`require' + '("react").%s` is deprecated. Please use `require' + '("%s").%s` ' + 'instead.', fnName, newModule, fnName) : undefined;
+      'React.%s is deprecated. Please use %s.%s from require' + '(\'%s\') ' + 'instead.', fnName, newModule, fnName, newPackage) : undefined;
       warned = true;
       return fn.apply(ctx, arguments);
     };
@@ -15763,7 +16175,7 @@ function deprecated(fnName, newModule, ctx, fn) {
 
 module.exports = deprecated;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"_process":1,"fbjs/lib/warning":155}],107:[function(require,module,exports){
+},{"./Object.assign":25,"_process":1,"fbjs/lib/warning":158}],110:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15802,7 +16214,7 @@ function escapeTextContentForBrowser(text) {
 }
 
 module.exports = escapeTextContentForBrowser;
-},{}],108:[function(require,module,exports){
+},{}],111:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -15848,13 +16260,13 @@ function findDOMNode(componentOrElement) {
   if (ReactInstanceMap.has(componentOrElement)) {
     return ReactMount.getNodeFromInstance(componentOrElement);
   }
-  !(componentOrElement.render == null || typeof componentOrElement.render !== 'function') ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Component (with keys: %s) contains `render` method ' + 'but is not mounted in the DOM', Object.keys(componentOrElement)) : invariant(false) : undefined;
+  !(componentOrElement.render == null || typeof componentOrElement.render !== 'function') ? process.env.NODE_ENV !== 'production' ? invariant(false, 'findDOMNode was called on an unmounted component.') : invariant(false) : undefined;
   !false ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Element appears to be neither ReactComponent nor DOMNode (keys: %s)', Object.keys(componentOrElement)) : invariant(false) : undefined;
 }
 
 module.exports = findDOMNode;
 }).call(this,require('_process'))
-},{"./ReactCurrentOwner":37,"./ReactInstanceMap":64,"./ReactMount":67,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],109:[function(require,module,exports){
+},{"./ReactCurrentOwner":37,"./ReactInstanceMap":65,"./ReactMount":68,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],112:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -15905,7 +16317,7 @@ function flattenChildren(children) {
 
 module.exports = flattenChildren;
 }).call(this,require('_process'))
-},{"./traverseAllChildren":128,"_process":1,"fbjs/lib/warning":155}],110:[function(require,module,exports){
+},{"./traverseAllChildren":130,"_process":1,"fbjs/lib/warning":158}],113:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15935,7 +16347,7 @@ var forEachAccumulated = function (arr, cb, scope) {
 };
 
 module.exports = forEachAccumulated;
-},{}],111:[function(require,module,exports){
+},{}],114:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -15986,7 +16398,7 @@ function getEventCharCode(nativeEvent) {
 }
 
 module.exports = getEventCharCode;
-},{}],112:[function(require,module,exports){
+},{}],115:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16090,7 +16502,7 @@ function getEventKey(nativeEvent) {
 }
 
 module.exports = getEventKey;
-},{"./getEventCharCode":111}],113:[function(require,module,exports){
+},{"./getEventCharCode":114}],116:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16135,7 +16547,7 @@ function getEventModifierState(nativeEvent) {
 }
 
 module.exports = getEventModifierState;
-},{}],114:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16165,7 +16577,7 @@ function getEventTarget(nativeEvent) {
 }
 
 module.exports = getEventTarget;
-},{}],115:[function(require,module,exports){
+},{}],118:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16206,7 +16618,7 @@ function getIteratorFn(maybeIterable) {
 }
 
 module.exports = getIteratorFn;
-},{}],116:[function(require,module,exports){
+},{}],119:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16280,7 +16692,7 @@ function getNodeForCharacterOffset(root, offset) {
 }
 
 module.exports = getNodeForCharacterOffset;
-},{}],117:[function(require,module,exports){
+},{}],120:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16314,7 +16726,7 @@ function getTextContentAccessor() {
 }
 
 module.exports = getTextContentAccessor;
-},{"fbjs/lib/ExecutionEnvironment":131}],118:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":133}],121:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -16376,10 +16788,8 @@ function instantiateReactComponent(node) {
   var instance;
 
   if (node === null || node === false) {
-    node = ReactEmptyComponent.emptyElement;
-  }
-
-  if (typeof node === 'object') {
+    instance = new ReactEmptyComponent(instantiateReactComponent);
+  } else if (typeof node === 'object') {
     var element = node;
     !(element && (typeof element.type === 'function' || typeof element.type === 'string')) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Element type is invalid: expected a string (for built-in components) ' + 'or a class/function (for composite components) but got: %s.%s', element.type == null ? element.type : typeof element.type, getDeclarationErrorAddendum(element._owner)) : invariant(false) : undefined;
 
@@ -16388,7 +16798,7 @@ function instantiateReactComponent(node) {
       instance = ReactNativeComponent.createInternalComponent(element);
     } else if (isInternalComponentType(element.type)) {
       // This is temporarily available for custom components that are not string
-      // represenations. I.e. ART. Once those are updated to use the string
+      // representations. I.e. ART. Once those are updated to use the string
       // representation, we can drop this code path.
       instance = new element.type(element);
     } else {
@@ -16431,7 +16841,7 @@ function instantiateReactComponent(node) {
 
 module.exports = instantiateReactComponent;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"./ReactCompositeComponent":36,"./ReactEmptyComponent":56,"./ReactNativeComponent":70,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],119:[function(require,module,exports){
+},{"./Object.assign":25,"./ReactCompositeComponent":36,"./ReactEmptyComponent":57,"./ReactNativeComponent":71,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],122:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16492,7 +16902,7 @@ function isEventSupported(eventNameSuffix, capture) {
 }
 
 module.exports = isEventSupported;
-},{"fbjs/lib/ExecutionEnvironment":131}],120:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":133}],123:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16533,39 +16943,7 @@ function isTextInputElement(elem) {
 }
 
 module.exports = isTextInputElement;
-},{}],121:[function(require,module,exports){
-/**
- * Copyright 2013-2015, Facebook, Inc.
- * All rights reserved.
- *
- * This source code is licensed under the BSD-style license found in the
- * LICENSE file in the root directory of this source tree. An additional grant
- * of patent rights can be found in the PATENTS file in the same directory.
- *
- * @providesModule memoizeStringOnly
- * @typechecks static-only
- */
-
-'use strict';
-
-/**
- * Memoizes the return value of a function that accepts one string argument.
- *
- * @param {function} callback
- * @return {function}
- */
-function memoizeStringOnly(callback) {
-  var cache = {};
-  return function (string) {
-    if (!cache.hasOwnProperty(string)) {
-      cache[string] = callback.call(this, string);
-    }
-    return cache[string];
-  };
-}
-
-module.exports = memoizeStringOnly;
-},{}],122:[function(require,module,exports){
+},{}],124:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -16601,7 +16979,7 @@ function onlyChild(children) {
 
 module.exports = onlyChild;
 }).call(this,require('_process'))
-},{"./ReactElement":54,"_process":1,"fbjs/lib/invariant":145}],123:[function(require,module,exports){
+},{"./ReactElement":55,"_process":1,"fbjs/lib/invariant":147}],125:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16628,7 +17006,7 @@ function quoteAttributeValueForBrowser(value) {
 }
 
 module.exports = quoteAttributeValueForBrowser;
-},{"./escapeTextContentForBrowser":107}],124:[function(require,module,exports){
+},{"./escapeTextContentForBrowser":110}],126:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16645,7 +17023,7 @@ module.exports = quoteAttributeValueForBrowser;
 var ReactMount = require('./ReactMount');
 
 module.exports = ReactMount.renderSubtreeIntoContainer;
-},{"./ReactMount":67}],125:[function(require,module,exports){
+},{"./ReactMount":68}],127:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16736,7 +17114,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = setInnerHTML;
-},{"fbjs/lib/ExecutionEnvironment":131}],126:[function(require,module,exports){
+},{"fbjs/lib/ExecutionEnvironment":133}],128:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16777,7 +17155,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = setTextContent;
-},{"./escapeTextContentForBrowser":107,"./setInnerHTML":125,"fbjs/lib/ExecutionEnvironment":131}],127:[function(require,module,exports){
+},{"./escapeTextContentForBrowser":110,"./setInnerHTML":127,"fbjs/lib/ExecutionEnvironment":133}],129:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -16804,20 +17182,24 @@ module.exports = setTextContent;
  * @protected
  */
 function shouldUpdateReactComponent(prevElement, nextElement) {
-  if (prevElement != null && nextElement != null) {
-    var prevType = typeof prevElement;
-    var nextType = typeof nextElement;
-    if (prevType === 'string' || prevType === 'number') {
-      return nextType === 'string' || nextType === 'number';
-    } else {
-      return nextType === 'object' && prevElement.type === nextElement.type && prevElement.key === nextElement.key;
-    }
+  var prevEmpty = prevElement === null || prevElement === false;
+  var nextEmpty = nextElement === null || nextElement === false;
+  if (prevEmpty || nextEmpty) {
+    return prevEmpty === nextEmpty;
+  }
+
+  var prevType = typeof prevElement;
+  var nextType = typeof nextElement;
+  if (prevType === 'string' || prevType === 'number') {
+    return nextType === 'string' || nextType === 'number';
+  } else {
+    return nextType === 'object' && prevElement.type === nextElement.type && prevElement.key === nextElement.key;
   }
   return false;
 }
 
 module.exports = shouldUpdateReactComponent;
-},{}],128:[function(require,module,exports){
+},{}],130:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -16832,8 +17214,8 @@ module.exports = shouldUpdateReactComponent;
 
 'use strict';
 
+var ReactCurrentOwner = require('./ReactCurrentOwner');
 var ReactElement = require('./ReactElement');
-var ReactFragment = require('./ReactFragment');
 var ReactInstanceHandles = require('./ReactInstanceHandles');
 
 var getIteratorFn = require('./getIteratorFn');
@@ -16926,7 +17308,7 @@ function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext)
   var child;
   var nextName;
   var subtreeCount = 0; // Count of children found in the current subtree.
-  var nextNamePrefix = nameSoFar !== '' ? nameSoFar + SUBSEPARATOR : SEPARATOR;
+  var nextNamePrefix = nameSoFar === '' ? SEPARATOR : nameSoFar + SUBSEPARATOR;
 
   if (Array.isArray(children)) {
     for (var i = 0; i < children.length; i++) {
@@ -16962,15 +17344,21 @@ function traverseAllChildrenImpl(children, nameSoFar, callback, traverseContext)
         }
       }
     } else if (type === 'object') {
-      !(children.nodeType !== 1) ? process.env.NODE_ENV !== 'production' ? invariant(false, 'traverseAllChildren(...): Encountered an invalid child; DOM ' + 'elements are not valid children of React components.') : invariant(false) : undefined;
-      var fragment = ReactFragment.extract(children);
-      for (var key in fragment) {
-        if (fragment.hasOwnProperty(key)) {
-          child = fragment[key];
-          nextName = nextNamePrefix + wrapUserProvidedKey(key) + SUBSEPARATOR + getComponentKey(child, 0);
-          subtreeCount += traverseAllChildrenImpl(child, nextName, callback, traverseContext);
+      var addendum = '';
+      if (process.env.NODE_ENV !== 'production') {
+        addendum = ' If you meant to render a collection of children, use an array ' + 'instead or wrap the object using createFragment(object) from the ' + 'React add-ons.';
+        if (children._isReactElement) {
+          addendum = ' It looks like you\'re using an element created by a different ' + 'version of React. Make sure to use only one copy of React.';
+        }
+        if (ReactCurrentOwner.current) {
+          var name = ReactCurrentOwner.current.getName();
+          if (name) {
+            addendum += ' Check the render method of `' + name + '`.';
+          }
         }
       }
+      var childrenString = String(children);
+      !false ? process.env.NODE_ENV !== 'production' ? invariant(false, 'Objects are not valid as a React child (found: %s).%s', childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString, addendum) : invariant(false) : undefined;
     }
   }
 
@@ -17003,7 +17391,7 @@ function traverseAllChildren(children, callback, traverseContext) {
 
 module.exports = traverseAllChildren;
 }).call(this,require('_process'))
-},{"./ReactElement":54,"./ReactFragment":60,"./ReactInstanceHandles":63,"./getIteratorFn":115,"_process":1,"fbjs/lib/invariant":145,"fbjs/lib/warning":155}],129:[function(require,module,exports){
+},{"./ReactCurrentOwner":37,"./ReactElement":55,"./ReactInstanceHandles":64,"./getIteratorFn":118,"_process":1,"fbjs/lib/invariant":147,"fbjs/lib/warning":158}],131:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2015, Facebook, Inc.
@@ -17369,7 +17757,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = validateDOMNesting;
 }).call(this,require('_process'))
-},{"./Object.assign":25,"_process":1,"fbjs/lib/emptyFunction":137,"fbjs/lib/warning":155}],130:[function(require,module,exports){
+},{"./Object.assign":25,"_process":1,"fbjs/lib/emptyFunction":139,"fbjs/lib/warning":158}],132:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -17456,7 +17844,7 @@ var EventListener = {
 
 module.exports = EventListener;
 }).call(this,require('_process'))
-},{"./emptyFunction":137,"_process":1}],131:[function(require,module,exports){
+},{"./emptyFunction":139,"_process":1}],133:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17467,8 +17855,6 @@ module.exports = EventListener;
  *
  * @providesModule ExecutionEnvironment
  */
-
-/*jslint evil: true */
 
 'use strict';
 
@@ -17495,7 +17881,7 @@ var ExecutionEnvironment = {
 };
 
 module.exports = ExecutionEnvironment;
-},{}],132:[function(require,module,exports){
+},{}],134:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17528,7 +17914,7 @@ function camelize(string) {
 }
 
 module.exports = camelize;
-},{}],133:[function(require,module,exports){
+},{}],135:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17569,7 +17955,7 @@ function camelizeStyleName(string) {
 }
 
 module.exports = camelizeStyleName;
-},{"./camelize":132}],134:[function(require,module,exports){
+},{"./camelize":134}],136:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17586,7 +17972,7 @@ module.exports = camelizeStyleName;
 
 var isTextNode = require('./isTextNode');
 
-/*jslint bitwise:true */
+/*eslint-disable no-bitwise */
 
 /**
  * Checks if a given DOM node contains or is another DOM node.
@@ -17625,7 +18011,7 @@ function containsNode(_x, _x2) {
 }
 
 module.exports = containsNode;
-},{"./isTextNode":147}],135:[function(require,module,exports){
+},{"./isTextNode":149}],137:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17711,7 +18097,7 @@ function createArrayFromMixed(obj) {
 }
 
 module.exports = createArrayFromMixed;
-},{"./toArray":154}],136:[function(require,module,exports){
+},{"./toArray":157}],138:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -17725,7 +18111,7 @@ module.exports = createArrayFromMixed;
  * @typechecks
  */
 
-/*jslint evil: true, sub: true */
+/*eslint-disable fb-www/unsafe-html*/
 
 'use strict';
 
@@ -17798,7 +18184,7 @@ function createNodesFromMarkup(markup, handleScript) {
 
 module.exports = createNodesFromMarkup;
 }).call(this,require('_process'))
-},{"./ExecutionEnvironment":131,"./createArrayFromMixed":135,"./getMarkupWrap":141,"./invariant":145,"_process":1}],137:[function(require,module,exports){
+},{"./ExecutionEnvironment":133,"./createArrayFromMixed":137,"./getMarkupWrap":143,"./invariant":147,"_process":1}],139:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17837,7 +18223,7 @@ emptyFunction.thatReturnsArgument = function (arg) {
 };
 
 module.exports = emptyFunction;
-},{}],138:[function(require,module,exports){
+},{}],140:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -17860,7 +18246,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = emptyObject;
 }).call(this,require('_process'))
-},{"_process":1}],139:[function(require,module,exports){
+},{"_process":1}],141:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17887,7 +18273,7 @@ function focusNode(node) {
 }
 
 module.exports = focusNode;
-},{}],140:[function(require,module,exports){
+},{}],142:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -17917,7 +18303,7 @@ function getActiveElement() /*?DOMElement*/{
 }
 
 module.exports = getActiveElement;
-},{}],141:[function(require,module,exports){
+},{}],143:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -17929,6 +18315,8 @@ module.exports = getActiveElement;
  *
  * @providesModule getMarkupWrap
  */
+
+/*eslint-disable fb-www/unsafe-html */
 
 'use strict';
 
@@ -18013,7 +18401,7 @@ function getMarkupWrap(nodeName) {
 
 module.exports = getMarkupWrap;
 }).call(this,require('_process'))
-},{"./ExecutionEnvironment":131,"./invariant":145,"_process":1}],142:[function(require,module,exports){
+},{"./ExecutionEnvironment":133,"./invariant":147,"_process":1}],144:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18026,7 +18414,7 @@ module.exports = getMarkupWrap;
  * @typechecks
  */
 
-"use strict";
+'use strict';
 
 /**
  * Gets the scroll position of the supplied element or window.
@@ -18052,7 +18440,7 @@ function getUnboundedScrollPosition(scrollable) {
 }
 
 module.exports = getUnboundedScrollPosition;
-},{}],143:[function(require,module,exports){
+},{}],145:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18086,7 +18474,7 @@ function hyphenate(string) {
 }
 
 module.exports = hyphenate;
-},{}],144:[function(require,module,exports){
+},{}],146:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18126,7 +18514,7 @@ function hyphenateStyleName(string) {
 }
 
 module.exports = hyphenateStyleName;
-},{"./hyphenate":143}],145:[function(require,module,exports){
+},{"./hyphenate":145}],147:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -18139,7 +18527,7 @@ module.exports = hyphenateStyleName;
  * @providesModule invariant
  */
 
-"use strict";
+'use strict';
 
 /**
  * Use invariant() to assert state which your program assumes to be true.
@@ -18152,7 +18540,7 @@ module.exports = hyphenateStyleName;
  * will remain to ensure logic does not differ in production.
  */
 
-var invariant = function (condition, format, a, b, c, d, e, f) {
+function invariant(condition, format, a, b, c, d, e, f) {
   if (process.env.NODE_ENV !== 'production') {
     if (format === undefined) {
       throw new Error('invariant requires an error message argument');
@@ -18166,19 +18554,20 @@ var invariant = function (condition, format, a, b, c, d, e, f) {
     } else {
       var args = [a, b, c, d, e, f];
       var argIndex = 0;
-      error = new Error('Invariant Violation: ' + format.replace(/%s/g, function () {
+      error = new Error(format.replace(/%s/g, function () {
         return args[argIndex++];
       }));
+      error.name = 'Invariant Violation';
     }
 
     error.framesToPop = 1; // we don't care about invariant's own frame
     throw error;
   }
-};
+}
 
 module.exports = invariant;
 }).call(this,require('_process'))
-},{"_process":1}],146:[function(require,module,exports){
+},{"_process":1}],148:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18202,7 +18591,7 @@ function isNode(object) {
 }
 
 module.exports = isNode;
-},{}],147:[function(require,module,exports){
+},{}],149:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18228,7 +18617,7 @@ function isTextNode(object) {
 }
 
 module.exports = isTextNode;
-},{"./isNode":146}],148:[function(require,module,exports){
+},{"./isNode":148}],150:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -18279,7 +18668,7 @@ var keyMirror = function (obj) {
 
 module.exports = keyMirror;
 }).call(this,require('_process'))
-},{"./invariant":145,"_process":1}],149:[function(require,module,exports){
+},{"./invariant":147,"_process":1}],151:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18315,7 +18704,7 @@ var keyOf = function (oneKeyObj) {
 };
 
 module.exports = keyOf;
-},{}],150:[function(require,module,exports){
+},{}],152:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18367,7 +18756,39 @@ function mapObject(object, callback, context) {
 }
 
 module.exports = mapObject;
-},{}],151:[function(require,module,exports){
+},{}],153:[function(require,module,exports){
+/**
+ * Copyright 2013-2015, Facebook, Inc.
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the
+ * LICENSE file in the root directory of this source tree. An additional grant
+ * of patent rights can be found in the PATENTS file in the same directory.
+ *
+ * @providesModule memoizeStringOnly
+ * @typechecks static-only
+ */
+
+'use strict';
+
+/**
+ * Memoizes the return value of a function that accepts one string argument.
+ *
+ * @param {function} callback
+ * @return {function}
+ */
+function memoizeStringOnly(callback) {
+  var cache = {};
+  return function (string) {
+    if (!cache.hasOwnProperty(string)) {
+      cache[string] = callback.call(this, string);
+    }
+    return cache[string];
+  };
+}
+
+module.exports = memoizeStringOnly;
+},{}],154:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18391,7 +18812,7 @@ if (ExecutionEnvironment.canUseDOM) {
 }
 
 module.exports = performance || {};
-},{"./ExecutionEnvironment":131}],152:[function(require,module,exports){
+},{"./ExecutionEnvironment":133}],155:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18407,21 +18828,26 @@ module.exports = performance || {};
 'use strict';
 
 var performance = require('./performance');
-var curPerformance = performance;
+
+var performanceNow;
 
 /**
  * Detect if we can use `window.performance.now()` and gracefully fallback to
  * `Date.now()` if it doesn't exist. We need to support Firefox < 15 for now
  * because of Facebook's testing infrastructure.
  */
-if (!curPerformance || !curPerformance.now) {
-  curPerformance = Date;
+if (performance.now) {
+  performanceNow = function () {
+    return performance.now();
+  };
+} else {
+  performanceNow = function () {
+    return Date.now();
+  };
 }
 
-var performanceNow = curPerformance.now.bind(curPerformance);
-
 module.exports = performanceNow;
-},{"./performance":151}],153:[function(require,module,exports){
+},{"./performance":154}],156:[function(require,module,exports){
 /**
  * Copyright 2013-2015, Facebook, Inc.
  * All rights reserved.
@@ -18472,7 +18898,7 @@ function shallowEqual(objA, objB) {
 }
 
 module.exports = shallowEqual;
-},{}],154:[function(require,module,exports){
+},{}],157:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2013-2015, Facebook, Inc.
@@ -18532,7 +18958,7 @@ function toArray(obj) {
 
 module.exports = toArray;
 }).call(this,require('_process'))
-},{"./invariant":145,"_process":1}],155:[function(require,module,exports){
+},{"./invariant":147,"_process":1}],158:[function(require,module,exports){
 (function (process){
 /**
  * Copyright 2014-2015, Facebook, Inc.
@@ -18545,7 +18971,7 @@ module.exports = toArray;
  * @providesModule warning
  */
 
-"use strict";
+'use strict';
 
 var emptyFunction = require('./emptyFunction');
 
@@ -18592,68 +19018,16 @@ if (process.env.NODE_ENV !== 'production') {
 
 module.exports = warning;
 }).call(this,require('_process'))
-},{"./emptyFunction":137,"_process":1}],156:[function(require,module,exports){
-(function (process){
+},{"./emptyFunction":139,"_process":1}],159:[function(require,module,exports){
 'use strict';
 
-var React = require('./lib/React');
+module.exports = require('./lib/React');
 
-var assign = require('./lib/Object.assign');
-var deprecated = require('./lib/deprecated');
-
-// We want to warn once when any of these methods are used.
-if (process.env.NODE_ENV !== 'production') {
-  var deprecations = {
-    // ReactDOM
-    findDOMNode: deprecated(
-      'findDOMNode',
-      'react-dom',
-      React,
-      React.findDOMNode
-    ),
-    render: deprecated(
-      'render',
-      'react-dom',
-      React,
-      React.render
-    ),
-    unmountComponentAtNode: deprecated(
-      'unmountComponentAtNode',
-      'react-dom',
-      React,
-      React.unmountComponentAtNode
-    ),
-    // ReactDOMServer
-    renderToString: deprecated(
-      'renderToString',
-      'react-dom/server',
-      React,
-      React.renderToString
-    ),
-    renderToStaticMarkup: deprecated(
-      'renderToStaticMarkup',
-      'react-dom/server',
-      React,
-      React.renderToStaticMarkup
-    ),
-  };
-  // Export a wrapped object. We'll use assign and take advantage of the fact
-  // that this will override the original methods in React.
-  module.exports = assign(
-    {},
-    React,
-    deprecations
-  );
-} else {
-  module.exports = React;
-}
-
-}).call(this,require('_process'))
-},{"./lib/Object.assign":25,"./lib/React":27,"./lib/deprecated":106,"_process":1}],157:[function(require,module,exports){
+},{"./lib/React":27}],160:[function(require,module,exports){
 
 module.exports = require('./lib/');
 
-},{"./lib/":158}],158:[function(require,module,exports){
+},{"./lib/":161}],161:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -18742,7 +19116,7 @@ exports.connect = lookup;
 exports.Manager = require('./manager');
 exports.Socket = require('./socket');
 
-},{"./manager":159,"./socket":161,"./url":162,"debug":166,"socket.io-parser":202}],159:[function(require,module,exports){
+},{"./manager":162,"./socket":164,"./url":165,"debug":169,"socket.io-parser":203}],162:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -19247,7 +19621,7 @@ Manager.prototype.onreconnect = function(){
   this.emitAll('reconnect', attempt);
 };
 
-},{"./on":160,"./socket":161,"./url":162,"backo2":163,"component-bind":164,"component-emitter":165,"debug":166,"engine.io-client":167,"indexof":198,"object-component":199,"socket.io-parser":202}],160:[function(require,module,exports){
+},{"./on":163,"./socket":164,"./url":165,"backo2":166,"component-bind":167,"component-emitter":168,"debug":169,"engine.io-client":170,"indexof":199,"object-component":200,"socket.io-parser":203}],163:[function(require,module,exports){
 
 /**
  * Module exports.
@@ -19273,7 +19647,7 @@ function on(obj, ev, fn) {
   };
 }
 
-},{}],161:[function(require,module,exports){
+},{}],164:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -19660,7 +20034,7 @@ Socket.prototype.disconnect = function(){
   return this;
 };
 
-},{"./on":160,"component-bind":164,"component-emitter":165,"debug":166,"has-binary":196,"socket.io-parser":202,"to-array":206}],162:[function(require,module,exports){
+},{"./on":163,"component-bind":167,"component-emitter":168,"debug":169,"has-binary":197,"socket.io-parser":203,"to-array":207}],165:[function(require,module,exports){
 (function (global){
 
 /**
@@ -19737,7 +20111,7 @@ function url(uri, loc){
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"debug":166,"parseuri":200}],163:[function(require,module,exports){
+},{"debug":169,"parseuri":201}],166:[function(require,module,exports){
 
 /**
  * Expose `Backoff`.
@@ -19824,7 +20198,7 @@ Backoff.prototype.setJitter = function(jitter){
 };
 
 
-},{}],164:[function(require,module,exports){
+},{}],167:[function(require,module,exports){
 /**
  * Slice reference.
  */
@@ -19849,7 +20223,7 @@ module.exports = function(obj, fn){
   }
 };
 
-},{}],165:[function(require,module,exports){
+},{}],168:[function(require,module,exports){
 
 /**
  * Expose `Emitter`.
@@ -20015,7 +20389,7 @@ Emitter.prototype.hasListeners = function(event){
   return !! this.listeners(event).length;
 };
 
-},{}],166:[function(require,module,exports){
+},{}],169:[function(require,module,exports){
 
 /**
  * Expose `debug()` as the module.
@@ -20154,11 +20528,11 @@ try {
   if (window.localStorage) debug.enable(localStorage.debug);
 } catch(e){}
 
-},{}],167:[function(require,module,exports){
+},{}],170:[function(require,module,exports){
 
 module.exports =  require('./lib/');
 
-},{"./lib/":168}],168:[function(require,module,exports){
+},{"./lib/":171}],171:[function(require,module,exports){
 
 module.exports = require('./socket');
 
@@ -20170,7 +20544,7 @@ module.exports = require('./socket');
  */
 module.exports.parser = require('engine.io-parser');
 
-},{"./socket":169,"engine.io-parser":181}],169:[function(require,module,exports){
+},{"./socket":172,"engine.io-parser":184}],172:[function(require,module,exports){
 (function (global){
 /**
  * Module dependencies.
@@ -20879,7 +21253,7 @@ Socket.prototype.filterUpgrades = function (upgrades) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./transport":170,"./transports":171,"component-emitter":165,"debug":178,"engine.io-parser":181,"indexof":198,"parsejson":192,"parseqs":193,"parseuri":194}],170:[function(require,module,exports){
+},{"./transport":173,"./transports":174,"component-emitter":168,"debug":181,"engine.io-parser":184,"indexof":199,"parsejson":193,"parseqs":194,"parseuri":195}],173:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -21040,7 +21414,7 @@ Transport.prototype.onClose = function () {
   this.emit('close');
 };
 
-},{"component-emitter":165,"engine.io-parser":181}],171:[function(require,module,exports){
+},{"component-emitter":168,"engine.io-parser":184}],174:[function(require,module,exports){
 (function (global){
 /**
  * Module dependencies
@@ -21097,7 +21471,7 @@ function polling(opts){
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./polling-jsonp":172,"./polling-xhr":173,"./websocket":175,"xmlhttprequest":176}],172:[function(require,module,exports){
+},{"./polling-jsonp":175,"./polling-xhr":176,"./websocket":178,"xmlhttprequest":179}],175:[function(require,module,exports){
 (function (global){
 
 /**
@@ -21334,7 +21708,7 @@ JSONPPolling.prototype.doWrite = function (data, fn) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./polling":174,"component-inherit":177}],173:[function(require,module,exports){
+},{"./polling":177,"component-inherit":180}],176:[function(require,module,exports){
 (function (global){
 /**
  * Module requirements.
@@ -21722,7 +22096,7 @@ function unloadHandler() {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./polling":174,"component-emitter":165,"component-inherit":177,"debug":178,"xmlhttprequest":176}],174:[function(require,module,exports){
+},{"./polling":177,"component-emitter":168,"component-inherit":180,"debug":181,"xmlhttprequest":179}],177:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -21969,7 +22343,7 @@ Polling.prototype.uri = function(){
   return schema + '://' + this.hostname + port + this.path + query;
 };
 
-},{"../transport":170,"component-inherit":177,"debug":178,"engine.io-parser":181,"parseqs":193,"xmlhttprequest":176}],175:[function(require,module,exports){
+},{"../transport":173,"component-inherit":180,"debug":181,"engine.io-parser":184,"parseqs":194,"xmlhttprequest":179}],178:[function(require,module,exports){
 /**
  * Module dependencies.
  */
@@ -22209,7 +22583,7 @@ WS.prototype.check = function(){
   return !!WebSocket && !('__initialize' in WebSocket && this.name === WS.prototype.name);
 };
 
-},{"../transport":170,"component-inherit":177,"debug":178,"engine.io-parser":181,"parseqs":193,"ws":195}],176:[function(require,module,exports){
+},{"../transport":173,"component-inherit":180,"debug":181,"engine.io-parser":184,"parseqs":194,"ws":196}],179:[function(require,module,exports){
 // browser shim for xmlhttprequest module
 var hasCORS = require('has-cors');
 
@@ -22247,7 +22621,7 @@ module.exports = function(opts) {
   }
 }
 
-},{"has-cors":190}],177:[function(require,module,exports){
+},{"has-cors":191}],180:[function(require,module,exports){
 
 module.exports = function(a, b){
   var fn = function(){};
@@ -22255,7 +22629,7 @@ module.exports = function(a, b){
   a.prototype = new fn;
   a.prototype.constructor = a;
 };
-},{}],178:[function(require,module,exports){
+},{}],181:[function(require,module,exports){
 
 /**
  * This is the web browser implementation of `debug()`.
@@ -22404,7 +22778,7 @@ function load() {
 
 exports.enable(load());
 
-},{"./debug":179}],179:[function(require,module,exports){
+},{"./debug":182}],182:[function(require,module,exports){
 
 /**
  * This is the common logic for both the Node.js and web browser
@@ -22603,7 +22977,7 @@ function coerce(val) {
   return val;
 }
 
-},{"ms":180}],180:[function(require,module,exports){
+},{"ms":183}],183:[function(require,module,exports){
 /**
  * Helpers.
  */
@@ -22716,7 +23090,7 @@ function plural(ms, n, name) {
   return Math.ceil(ms / n) + ' ' + name + 's';
 }
 
-},{}],181:[function(require,module,exports){
+},{}],184:[function(require,module,exports){
 (function (global){
 /**
  * Module dependencies.
@@ -23314,7 +23688,7 @@ exports.decodePayloadAsBinary = function (data, binaryType, callback) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./keys":182,"after":183,"arraybuffer.slice":184,"base64-arraybuffer":185,"blob":186,"has-binary":187,"utf8":189}],182:[function(require,module,exports){
+},{"./keys":185,"after":186,"arraybuffer.slice":187,"base64-arraybuffer":188,"blob":189,"has-binary":197,"utf8":190}],185:[function(require,module,exports){
 
 /**
  * Gets the keys for an object.
@@ -23335,7 +23709,7 @@ module.exports = Object.keys || function keys (obj){
   return arr;
 };
 
-},{}],183:[function(require,module,exports){
+},{}],186:[function(require,module,exports){
 module.exports = after
 
 function after(count, callback, err_cb) {
@@ -23365,7 +23739,7 @@ function after(count, callback, err_cb) {
 
 function noop() {}
 
-},{}],184:[function(require,module,exports){
+},{}],187:[function(require,module,exports){
 /**
  * An abstraction for slicing an arraybuffer even when
  * ArrayBuffer.prototype.slice is not supported
@@ -23396,7 +23770,7 @@ module.exports = function(arraybuffer, start, end) {
   return result.buffer;
 };
 
-},{}],185:[function(require,module,exports){
+},{}],188:[function(require,module,exports){
 /*
  * base64-arraybuffer
  * https://github.com/niklasvh/base64-arraybuffer
@@ -23457,7 +23831,7 @@ module.exports = function(arraybuffer, start, end) {
   };
 })("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
 
-},{}],186:[function(require,module,exports){
+},{}],189:[function(require,module,exports){
 (function (global){
 /**
  * Create a blob builder even when vendor prefixes exist
@@ -23474,8 +23848,22 @@ var BlobBuilder = global.BlobBuilder
 
 var blobSupported = (function() {
   try {
-    var b = new Blob(['hi']);
-    return b.size == 2;
+    var a = new Blob(['hi']);
+    return a.size === 2;
+  } catch(e) {
+    return false;
+  }
+})();
+
+/**
+ * Check if Blob constructor supports ArrayBufferViews
+ * Fails in Safari 6, so we need to map to ArrayBuffers there.
+ */
+
+var blobSupportsArrayBufferView = blobSupported && (function() {
+  try {
+    var b = new Blob([new Uint8Array([1,2])]);
+    return b.size === 2;
   } catch(e) {
     return false;
   }
@@ -23489,19 +23877,52 @@ var blobBuilderSupported = BlobBuilder
   && BlobBuilder.prototype.append
   && BlobBuilder.prototype.getBlob;
 
+/**
+ * Helper function that maps ArrayBufferViews to ArrayBuffers
+ * Used by BlobBuilder constructor and old browsers that didn't
+ * support it in the Blob constructor.
+ */
+
+function mapArrayBufferViews(ary) {
+  for (var i = 0; i < ary.length; i++) {
+    var chunk = ary[i];
+    if (chunk.buffer instanceof ArrayBuffer) {
+      var buf = chunk.buffer;
+
+      // if this is a subarray, make a copy so we only
+      // include the subarray region from the underlying buffer
+      if (chunk.byteLength !== buf.byteLength) {
+        var copy = new Uint8Array(chunk.byteLength);
+        copy.set(new Uint8Array(buf, chunk.byteOffset, chunk.byteLength));
+        buf = copy.buffer;
+      }
+
+      ary[i] = buf;
+    }
+  }
+}
+
 function BlobBuilderConstructor(ary, options) {
   options = options || {};
 
   var bb = new BlobBuilder();
+  mapArrayBufferViews(ary);
+
   for (var i = 0; i < ary.length; i++) {
     bb.append(ary[i]);
   }
+
   return (options.type) ? bb.getBlob(options.type) : bb.getBlob();
+};
+
+function BlobConstructor(ary, options) {
+  mapArrayBufferViews(ary);
+  return new Blob(ary, options || {});
 };
 
 module.exports = (function() {
   if (blobSupported) {
-    return global.Blob;
+    return blobSupportsArrayBufferView ? global.Blob : BlobConstructor;
   } else if (blobBuilderSupported) {
     return BlobBuilderConstructor;
   } else {
@@ -23510,76 +23931,9 @@ module.exports = (function() {
 })();
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],187:[function(require,module,exports){
+},{}],190:[function(require,module,exports){
 (function (global){
-
-/*
- * Module requirements.
- */
-
-var isArray = require('isarray');
-
-/**
- * Module exports.
- */
-
-module.exports = hasBinary;
-
-/**
- * Checks for binary data.
- *
- * Right now only Buffer and ArrayBuffer are supported..
- *
- * @param {Object} anything
- * @api public
- */
-
-function hasBinary(data) {
-
-  function _hasBinary(obj) {
-    if (!obj) return false;
-
-    if ( (global.Buffer && global.Buffer.isBuffer(obj)) ||
-         (global.ArrayBuffer && obj instanceof ArrayBuffer) ||
-         (global.Blob && obj instanceof Blob) ||
-         (global.File && obj instanceof File)
-        ) {
-      return true;
-    }
-
-    if (isArray(obj)) {
-      for (var i = 0; i < obj.length; i++) {
-          if (_hasBinary(obj[i])) {
-              return true;
-          }
-      }
-    } else if (obj && 'object' == typeof obj) {
-      if (obj.toJSON) {
-        obj = obj.toJSON();
-      }
-
-      for (var key in obj) {
-        if (obj.hasOwnProperty(key) && _hasBinary(obj[key])) {
-          return true;
-        }
-      }
-    }
-
-    return false;
-  }
-
-  return _hasBinary(data);
-}
-
-}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"isarray":188}],188:[function(require,module,exports){
-module.exports = Array.isArray || function (arr) {
-  return Object.prototype.toString.call(arr) == '[object Array]';
-};
-
-},{}],189:[function(require,module,exports){
-(function (global){
-/*! http://mths.be/utf8js v2.0.0 by @mathias */
+/*! https://mths.be/utf8js v2.0.0 by @mathias */
 ;(function(root) {
 
 	// Detect free variables `exports`
@@ -23600,7 +23954,7 @@ module.exports = Array.isArray || function (arr) {
 
 	var stringFromCharCode = String.fromCharCode;
 
-	// Taken from http://mths.be/punycode
+	// Taken from https://mths.be/punycode
 	function ucs2decode(string) {
 		var output = [];
 		var counter = 0;
@@ -23627,7 +23981,7 @@ module.exports = Array.isArray || function (arr) {
 		return output;
 	}
 
-	// Taken from http://mths.be/punycode
+	// Taken from https://mths.be/punycode
 	function ucs2encode(array) {
 		var length = array.length;
 		var index = -1;
@@ -23645,6 +23999,14 @@ module.exports = Array.isArray || function (arr) {
 		return output;
 	}
 
+	function checkScalarValue(codePoint) {
+		if (codePoint >= 0xD800 && codePoint <= 0xDFFF) {
+			throw Error(
+				'Lone surrogate U+' + codePoint.toString(16).toUpperCase() +
+				' is not a scalar value'
+			);
+		}
+	}
 	/*--------------------------------------------------------------------------*/
 
 	function createByte(codePoint, shift) {
@@ -23660,6 +24022,7 @@ module.exports = Array.isArray || function (arr) {
 			symbol = stringFromCharCode(((codePoint >> 6) & 0x1F) | 0xC0);
 		}
 		else if ((codePoint & 0xFFFF0000) == 0) { // 3-byte sequence
+			checkScalarValue(codePoint);
 			symbol = stringFromCharCode(((codePoint >> 12) & 0x0F) | 0xE0);
 			symbol += createByte(codePoint, 6);
 		}
@@ -23674,11 +24037,6 @@ module.exports = Array.isArray || function (arr) {
 
 	function utf8encode(string) {
 		var codePoints = ucs2decode(string);
-
-		// console.log(JSON.stringify(codePoints.map(function(x) {
-		// 	return 'U+' + x.toString(16).toUpperCase();
-		// })));
-
 		var length = codePoints.length;
 		var index = -1;
 		var codePoint;
@@ -23749,6 +24107,7 @@ module.exports = Array.isArray || function (arr) {
 			byte3 = readContinuationByte();
 			codePoint = ((byte1 & 0x0F) << 12) | (byte2 << 6) | byte3;
 			if (codePoint >= 0x0800) {
+				checkScalarValue(codePoint);
 				return codePoint;
 			} else {
 				throw Error('Invalid continuation byte');
@@ -23820,7 +24179,7 @@ module.exports = Array.isArray || function (arr) {
 }(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],190:[function(require,module,exports){
+},{}],191:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -23845,7 +24204,7 @@ try {
   module.exports = false;
 }
 
-},{"global":191}],191:[function(require,module,exports){
+},{"global":192}],192:[function(require,module,exports){
 
 /**
  * Returns `this`. Execute this without a "context" (i.e. without it being
@@ -23855,7 +24214,7 @@ try {
 
 module.exports = (function () { return this; })();
 
-},{}],192:[function(require,module,exports){
+},{}],193:[function(require,module,exports){
 (function (global){
 /**
  * JSON parse.
@@ -23890,7 +24249,7 @@ module.exports = function parsejson(data) {
   }
 };
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],193:[function(require,module,exports){
+},{}],194:[function(require,module,exports){
 /**
  * Compiles a querystring
  * Returns string representation of the object
@@ -23929,7 +24288,7 @@ exports.decode = function(qs){
   return qry;
 };
 
-},{}],194:[function(require,module,exports){
+},{}],195:[function(require,module,exports){
 /**
  * Parses an URI
  *
@@ -23970,7 +24329,7 @@ module.exports = function parseuri(str) {
     return uri;
 };
 
-},{}],195:[function(require,module,exports){
+},{}],196:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -24015,7 +24374,7 @@ function ws(uri, protocols, opts) {
 
 if (WebSocket) ws.prototype = WebSocket.prototype;
 
-},{}],196:[function(require,module,exports){
+},{}],197:[function(require,module,exports){
 (function (global){
 
 /*
@@ -24077,9 +24436,12 @@ function hasBinary(data) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"isarray":197}],197:[function(require,module,exports){
-arguments[4][188][0].apply(exports,arguments)
-},{"dup":188}],198:[function(require,module,exports){
+},{"isarray":198}],198:[function(require,module,exports){
+module.exports = Array.isArray || function (arr) {
+  return Object.prototype.toString.call(arr) == '[object Array]';
+};
+
+},{}],199:[function(require,module,exports){
 
 var indexOf = [].indexOf;
 
@@ -24090,7 +24452,7 @@ module.exports = function(arr, obj){
   }
   return -1;
 };
-},{}],199:[function(require,module,exports){
+},{}],200:[function(require,module,exports){
 
 /**
  * HOP ref.
@@ -24175,7 +24537,7 @@ exports.length = function(obj){
 exports.isEmpty = function(obj){
   return 0 == exports.length(obj);
 };
-},{}],200:[function(require,module,exports){
+},{}],201:[function(require,module,exports){
 /**
  * Parses an URI
  *
@@ -24202,7 +24564,7 @@ module.exports = function parseuri(str) {
   return uri;
 };
 
-},{}],201:[function(require,module,exports){
+},{}],202:[function(require,module,exports){
 (function (global){
 /*global Blob,File*/
 
@@ -24347,7 +24709,7 @@ exports.removeBlobs = function(data, callback) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./is-buffer":203,"isarray":204}],202:[function(require,module,exports){
+},{"./is-buffer":204,"isarray":205}],203:[function(require,module,exports){
 
 /**
  * Module dependencies.
@@ -24749,7 +25111,7 @@ function error(data){
   };
 }
 
-},{"./binary":201,"./is-buffer":203,"component-emitter":165,"debug":166,"isarray":204,"json3":205}],203:[function(require,module,exports){
+},{"./binary":202,"./is-buffer":204,"component-emitter":168,"debug":169,"isarray":205,"json3":206}],204:[function(require,module,exports){
 (function (global){
 
 module.exports = isBuf;
@@ -24766,9 +25128,9 @@ function isBuf(obj) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],204:[function(require,module,exports){
-arguments[4][188][0].apply(exports,arguments)
-},{"dup":188}],205:[function(require,module,exports){
+},{}],205:[function(require,module,exports){
+arguments[4][198][0].apply(exports,arguments)
+},{"dup":198}],206:[function(require,module,exports){
 /*! JSON v3.2.6 | http://bestiejs.github.io/json3 | Copyright 2012-2013, Kit Cambridge | http://kit.mit-license.org */
 ;(function (window) {
   // Convenience aliases.
@@ -25631,7 +25993,7 @@ arguments[4][188][0].apply(exports,arguments)
   }
 }(this));
 
-},{}],206:[function(require,module,exports){
+},{}],207:[function(require,module,exports){
 module.exports = toArray
 
 function toArray(list, index) {
@@ -25646,7 +26008,7 @@ function toArray(list, index) {
     return array
 }
 
-},{}],207:[function(require,module,exports){
+},{}],208:[function(require,module,exports){
 var config = {
   hostname: 'localhost',
   port: 3000,
@@ -25752,7 +26114,7 @@ module.exports = {
   destroyStream: destroyStream
 };
 
-},{"socket.io-client":157}],208:[function(require,module,exports){
+},{"socket.io-client":160}],209:[function(require,module,exports){
 'use strict';
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
@@ -25771,7 +26133,7 @@ var _componentsApplicationReact2 = _interopRequireDefault(_componentsApplication
 
 _reactDom2['default'].render(_react2['default'].createElement(_componentsApplicationReact2['default'], null), document.getElementById('react-application'));
 
-},{"./components/Application.react":209,"react":156,"react-dom":2}],209:[function(require,module,exports){
+},{"./components/Application.react":210,"react":159,"react-dom":2}],210:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -25780,7 +26142,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -25874,7 +26236,7 @@ var Application = (function (_React$Component) {
 exports['default'] = Application;
 module.exports = exports['default'];
 
-},{"./Collection.react":211,"./Stream.react":216,"react":156}],210:[function(require,module,exports){
+},{"./Collection.react":212,"./Stream.react":217,"react":159}],211:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -25883,7 +26245,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -25928,7 +26290,7 @@ var Button = (function (_React$Component) {
 exports['default'] = Button;
 module.exports = exports['default'];
 
-},{"react":156}],211:[function(require,module,exports){
+},{"react":159}],212:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -25937,7 +26299,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -25965,8 +26327,8 @@ var _HeaderReact = require('./Header.react');
 
 var _HeaderReact2 = _interopRequireDefault(_HeaderReact);
 
-var Collection = (function (_React$Component) {
-    _inherits(Collection, _React$Component);
+var Collection = (function (_Component) {
+    _inherits(Collection, _Component);
 
     function Collection() {
         _classCallCheck(this, Collection);
@@ -26025,12 +26387,12 @@ var Collection = (function (_React$Component) {
     }]);
 
     return Collection;
-})(_react2['default'].Component);
+})(_react.Component);
 
 exports['default'] = Collection;
 module.exports = exports['default'];
 
-},{"./CollectionControls.react":212,"./Header.react":215,"./TweetList.react":219,"react":156,"react-dom/server":3}],212:[function(require,module,exports){
+},{"./CollectionControls.react":213,"./Header.react":216,"./TweetList.react":220,"react":159,"react-dom/server":3}],213:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26039,7 +26401,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26152,7 +26514,7 @@ var CollectionControls = (function (_React$Component) {
 exports['default'] = CollectionControls;
 module.exports = exports['default'];
 
-},{"./Button.react":210,"./CollectionExportForm.react":213,"./CollectionRenameForm.react":214,"./Header.react":215,"react":156}],213:[function(require,module,exports){
+},{"./Button.react":211,"./CollectionExportForm.react":214,"./CollectionRenameForm.react":215,"./Header.react":216,"react":159}],214:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26161,7 +26523,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26208,7 +26570,7 @@ var CollectionExportForm = (function (_React$Component) {
 exports['default'] = CollectionExportForm;
 module.exports = exports['default'];
 
-},{"react":156}],214:[function(require,module,exports){
+},{"react":159}],215:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26217,7 +26579,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26326,7 +26688,7 @@ var CollectionRenameForm = (function (_React$Component) {
 exports['default'] = CollectionRenameForm;
 module.exports = exports['default'];
 
-},{"./Button.react":210,"./Header.react":215,"react":156,"react-dom":2}],215:[function(require,module,exports){
+},{"./Button.react":211,"./Header.react":216,"react":159,"react-dom":2}],216:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26335,7 +26697,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26384,7 +26746,7 @@ Header.defaultProps = {
 exports['default'] = Header;
 module.exports = exports['default'];
 
-},{"react":156}],216:[function(require,module,exports){
+},{"react":159}],217:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26393,7 +26755,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26416,8 +26778,6 @@ var _HeaderReact2 = _interopRequireDefault(_HeaderReact);
 var _snapkiteStreamClient = require('snapkite-stream-client');
 
 var _snapkiteStreamClient2 = _interopRequireDefault(_snapkiteStreamClient);
-
-//const SnapkiteStreamClient = require('snapkite-stream-client');
 
 var Stream = (function (_React$Component) {
     _inherits(Stream, _React$Component);
@@ -26469,7 +26829,7 @@ var Stream = (function (_React$Component) {
 exports['default'] = Stream;
 module.exports = exports['default'];
 
-},{"./Header.react":215,"./StreamTweet.react":217,"react":156,"snapkite-stream-client":207}],217:[function(require,module,exports){
+},{"./Header.react":216,"./StreamTweet.react":218,"react":159,"snapkite-stream-client":208}],218:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26478,7 +26838,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26592,7 +26952,7 @@ var StreamTweet = (function (_React$Component) {
 exports['default'] = StreamTweet;
 module.exports = exports['default'];
 
-},{"./Header.react":215,"./Tweet.react":218,"react":156,"react-dom":2}],218:[function(require,module,exports){
+},{"./Header.react":216,"./Tweet.react":219,"react":159,"react-dom":2}],219:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26601,7 +26961,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26684,7 +27044,7 @@ Tweet.propTypes = {
 exports['default'] = Tweet;
 module.exports = exports['default'];
 
-},{"react":156}],219:[function(require,module,exports){
+},{"react":159}],220:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, '__esModule', {
@@ -26693,7 +27053,7 @@ Object.defineProperty(exports, '__esModule', {
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; desc = parent = getter = undefined; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { var object = _x, property = _x2, receiver = _x3; _again = false; if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; desc = parent = undefined; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
@@ -26718,8 +27078,8 @@ var listItemStyle = {
     listStyle: 'none'
 };
 
-var TweetList = (function (_React$Component) {
-    _inherits(TweetList, _React$Component);
+var TweetList = (function (_Component) {
+    _inherits(TweetList, _Component);
 
     function TweetList() {
         _classCallCheck(this, TweetList);
@@ -26766,9 +27126,9 @@ var TweetList = (function (_React$Component) {
     }]);
 
     return TweetList;
-})(_react2['default'].Component);
+})(_react.Component);
 
 exports['default'] = TweetList;
 module.exports = exports['default'];
 
-},{"./Tweet.react":218,"react":156}]},{},[208]);
+},{"./Tweet.react":219,"react":159}]},{},[209]);

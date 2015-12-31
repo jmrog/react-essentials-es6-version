@@ -11,7 +11,7 @@ class Application extends React.Component {
     }
 
     addTweetToCollection(tweet) {
-        let { collectionTweets } = this.state;
+        const { collectionTweets } = this.state;
         collectionTweets[tweet.id] = tweet;
 
         this.setState({
@@ -20,7 +20,7 @@ class Application extends React.Component {
     }
 
     removeTweetFromCollection(tweet) {
-        let { collectionTweets } = this.state;
+        const { collectionTweets } = this.state;
         delete collectionTweets[tweet.id];
 
         this.setState({

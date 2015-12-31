@@ -2,7 +2,6 @@ import React from 'react';
 import StreamTweet from './StreamTweet.react';
 import Header from './Header.react';
 import SnapkiteStreamClient from 'snapkite-stream-client';
-//const SnapkiteStreamClient = require('snapkite-stream-client');
 
 class Stream extends React.Component {
     constructor() {

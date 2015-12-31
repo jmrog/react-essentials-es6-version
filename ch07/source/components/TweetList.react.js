@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Component } from 'react';
 import Tweet from './Tweet.react';
 
 const listStyle = {
@@ -10,7 +10,7 @@ const listItemStyle = {
     listStyle: 'none'
 };
 
-class TweetList extends React.Component {
+class TweetList extends Component {
     getListOfTweetIds() {
         return Object.keys(this.props.tweets);
     }

@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { Component } from 'react';
 import ReactDOMServer from 'react-dom/server';
 import CollectionControls from './CollectionControls.react';
 import TweetList from './TweetList.react';
 import Header from './Header.react';
 
-class Collection extends React.Component {
+class Collection extends Component {
     createHtmlMarkupStringOfTweetList() {
         const htmlString = ReactDOMServer.renderToStaticMarkup(
             <TweetList tweets={this.props.tweets} />

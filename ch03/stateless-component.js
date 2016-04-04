@@ -7,7 +7,6 @@ class ReactClass extends React.Component {
     }
 }
 
-// not really sure ATM whether `React.createElement` has some ES6-style alternative...
 const reactComponentElement = React.createElement(ReactClass);
 const reactComponent = ReactDOM.render(reactComponentElement, document.getElementById('react-application'));
 

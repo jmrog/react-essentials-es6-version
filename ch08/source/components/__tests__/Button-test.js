@@ -5,8 +5,9 @@ describe('Button component', () => {
         // can't use `import` with `jest.dontMock`
         const React = require('react');
         const TestUtils = require('react-addons-test-utils');
-        const Button = require('../Button.react');
         const handleClick = jest.genMockFunction();
+        let Button = require('../Button.react');
+        Button = Button.default || Button;
 
         const button = TestUtils.renderIntoDocument(
             // binding isn't necessary in this case

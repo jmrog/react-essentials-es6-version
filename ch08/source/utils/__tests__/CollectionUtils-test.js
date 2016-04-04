@@ -1,7 +1,8 @@
 jest.autoMockOff();
 
 describe('Collection utilities module', () => {
-    const CollectionUtils = require('../CollectionUtils');
+    let CollectionUtils = require('../CollectionUtils');
+    CollectionUtils = CollectionUtils.default || CollectionUtils;
 
     const collectionTweetsMock = {
         collectionTweet7: {},

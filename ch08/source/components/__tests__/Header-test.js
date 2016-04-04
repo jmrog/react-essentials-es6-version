@@ -6,7 +6,8 @@ describe('Header component', () => {
         const React = require('react');
         const ReactDOM = require('react-dom');
         const TestUtils = require('react-addons-test-utils');
-        const Header = require('../Header.react');
+        let Header = require('../Header.react');
+        Header = Header.default || Header;
 
         const header = TestUtils.renderIntoDocument(
             <Header text="Testing..." />
